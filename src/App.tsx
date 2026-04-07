@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { supabase } from './lib/supabase'
+import { supabase, checkSupabaseConnection } from './lib/supabase'
 import { 
   Users, 
   Activity, 
@@ -12,10 +12,14 @@ import {
   ChevronRight,
   ShieldCheck,
   Bell,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle,
+  RefreshCw,
+  Info
 } from 'lucide-react'
 import { SignalsFeed } from './components/SignalsFeed'
 import { Simulator, type Lead, type Signal } from './components/Simulator'
+import MeshCanvas from './components/MeshCanvas'
 
 type TabType = 'Overview' | 'Revealed' | 'Activity' | 'Signals';
 
@@ -25,10 +29,12 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('Overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [connStatus, setConnStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [connError, setConnError] = useState<string | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
-    fetchLeads();
-    fetchSignals();
+    initApp();
 
     const leadsChannel = supabase
       .channel('leads-changes')
@@ -50,6 +56,18 @@ function App() {
     };
   }, []);
 
+  const initApp = async () => {
+    setLoading(true);
+    const { status, error } = await checkSupabaseConnection();
+    setConnStatus(status as 'connected' | 'error');
+    setConnError(error);
+    
+    if (status === 'connected') {
+      await Promise.all([fetchLeads(), fetchSignals()]);
+    }
+    setLoading(false);
+  };
+
   const fetchLeads = async () => {
     try {
       const { data, error } = await supabase
@@ -57,11 +75,14 @@ function App() {
         .select('*')
         .order('last_seen', { ascending: false });
 
-      if (!error && data) setLeads(data);
+      if (error) {
+        console.error('Supabase fetch error (leads):', error);
+        setConnError(error.message);
+      } else if (data) {
+        setLeads(data);
+      }
     } catch (err) {
       console.error('Failed to fetch leads:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -72,7 +93,12 @@ function App() {
         .select('*')
         .order('timestamp', { ascending: false });
 
-      if (!error && data) setSignals(data);
+      if (error) {
+        console.error('Supabase fetch error (signals):', error);
+        setConnError(error.message);
+      } else if (data) {
+        setSignals(data);
+      }
     } catch (err) {
       console.error('Failed to fetch signals:', err);
     }
@@ -80,8 +106,9 @@ function App() {
 
   const syncSignals = () => {
     // Open instructions for the LinkedIn Bookmarklet sync
-    window.alert("To sync LinkedIn signals: \n1. Drag the 'LinkedIn Sync' bookmarklet from your settings to your bookmarks bar.\n2. Navigate to your 'Who viewed your profile' page on LinkedIn.\n3. Click the bookmarklet to sync instantly.");
+    window.alert("To sync LinkedIn signals: \n1. Open your LinkedIn Profile Views or a specific Post.\n2. Click the 'Stealth Mode' bookmarklet.\n3. Capture happens automatically via 'Auto-Detection'.");
   };
+
 
   const filteredLeads = useMemo(() => {
     return leads.filter(l => 
@@ -91,9 +118,10 @@ function App() {
   }, [leads, searchQuery]);
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 bg-grid">
+    <div className="flex min-h-screen relative text-[var(--text-primary)]">
+      <MeshCanvas />
       {/* Sidebar */}
-      <aside className="w-72 border-r border-slate-200/60 bg-white/40 backdrop-blur-3xl p-8 flex flex-col hidden lg:flex fixed h-full z-20">
+      <aside className="w-72 border-r border-[var(--border-color)] bg-[var(--bg-surface)] backdrop-blur-3xl p-8 flex flex-col hidden lg:flex fixed h-full z-20">
         <div className="flex items-center gap-3 mb-12">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
             <Zap className="text-white w-6 h-6 fill-white" />
@@ -145,6 +173,25 @@ function App() {
             <p className="text-slate-500 mt-1 font-medium">Monitoring jwaiconsulting.com in real-time.</p>
           </div>
           <div className="flex items-center gap-4">
+            {/* Connection Status Badge */}
+            <div 
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-help transition-all ${
+                connStatus === 'connected' ? 'bg-green-50 text-green-600 border border-green-100' :
+                connStatus === 'error' ? 'bg-red-50 text-red-600 border border-red-100 animate-pulse' :
+                'bg-slate-50 text-slate-400'
+              }`}
+              onClick={() => setShowDebug(!showDebug)}
+              title={connError || 'Connection Active'}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                connStatus === 'connected' ? 'bg-green-500' :
+                connStatus === 'error' ? 'bg-red-500' :
+                'bg-slate-300'
+              }`} />
+              {connStatus === 'connected' ? 'DB Online' : connStatus === 'error' ? 'DB Offline' : 'Syncing...'}
+              {connStatus === 'error' && <AlertTriangle size={10} className="ml-1" />}
+            </div>
+
             <div className={`flex items-center bg-white border border-slate-200 rounded-2xl px-4 py-2 transition-all ${searchQuery ? 'ring-2 ring-blue-500/20 border-blue-500/50' : ''}`}>
               <Search size={18} className="text-slate-400 mr-2" />
               <input 
@@ -161,6 +208,57 @@ function App() {
             </button>
           </div>
         </header>
+
+        {/* Debug Panel */}
+        {showDebug && (
+          <div className="mb-8 p-6 bg-slate-900 rounded-3xl text-slate-300 font-mono text-xs relative overflow-hidden animate-slide-down">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Info size={14} className="text-blue-400" />
+                <span className="font-bold text-blue-400 uppercase tracking-widest">Connectivity Debugger</span>
+              </div>
+              <button 
+                onClick={() => initApp()}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <RefreshCw size={12} /> Re-check
+              </button>
+            </div>
+            <div className="space-y-3">
+              <p className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-500">Service:</span> 
+                <span className="text-blue-400 font-bold">Supabase Cloud</span>
+              </p>
+              <p className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-500">Connection Status:</span> 
+                <span className={connStatus === 'connected' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{connStatus.toUpperCase()}</span>
+              </p>
+              <p className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-500">Leads in DB:</span> 
+                <span className="text-white font-bold">{leads.length} rows</span>
+              </p>
+              <p className="flex justify-between border-b border-slate-800 pb-2">
+                <span className="text-slate-500">Signals in DB:</span> 
+                <span className="text-white font-bold">{signals.length} rows</span>
+              </p>
+              
+              {connError && (
+                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 leading-relaxed">
+                  <p className="font-bold mb-1 flex items-center gap-2 underline uppercase tracking-tighter">
+                    <AlertTriangle size={14} /> Error Trace:
+                  </p>
+                  <p className="break-all opacity-80">{connError}</p>
+                </div>
+              )}
+              
+              {!connError && connStatus === 'connected' && (
+                <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-green-400 font-bold animate-pulse text-center uppercase tracking-widest text-[10px]">
+                  ✅ Pipeline connected to cdbvlnxirrfczxdccwbr.supabase.co
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {activeTab === 'Overview' && (
           <>

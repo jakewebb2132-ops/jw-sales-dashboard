@@ -1,5 +1,5 @@
 import { type Signal } from './Simulator'
-import { Zap, Clock, ExternalLink, MessageSquare, Eye } from 'lucide-react'
+import { Zap, Clock, ExternalLink, MessageSquare, Eye, ThumbsUp } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface SignalsFeedProps {
@@ -63,35 +63,46 @@ export const SignalsFeed = ({ signals, onSync }: SignalsFeedProps) => {
                   className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white/50 group-hover:ring-blue-100 transition-all"
                 />
                 <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-lg flex items-center justify-center border-2 border-white shadow-sm ${
-                  signal.type === 'profile_view' ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'
+                  signal.type === 'profile_view' ? 'bg-blue-600 text-white' : 
+                  signal.type === 'post_comment' ? 'bg-purple-600 text-white' :
+                  'bg-amber-500 text-white'
                 }`}>
-                  {signal.type === 'profile_view' ? <Eye size={12} /> : <MessageSquare size={12} />}
+                  {signal.type === 'profile_view' ? <Eye size={12} /> : 
+                   signal.type === 'post_comment' ? <MessageSquare size={12} /> :
+                   <ThumbsUp size={12} />}
                 </div>
               </div>
 
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-1">
                   <div>
-                    <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2 text-sm uppercase tracking-tight">
                       {signal.person_name}
                       <a href={signal.linkedin_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <ExternalLink size={14} className="text-slate-400 hover:text-blue-600" />
                       </a>
                     </h4>
-                    <p className="text-slate-500 text-xs">{signal.person_title} at <span className="font-medium text-slate-700">{signal.person_company}</span></p>
+                    <p className="text-slate-500 text-[11px] font-medium leading-tight">
+                      {signal.person_title} {signal.person_company ? `at ${signal.person_company}` : ''}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
+                  <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
                     <Clock size={10} />
                     {formatDistanceToNow(new Date(signal.timestamp), { addSuffix: true })}
                   </div>
                 </div>
 
-                <div className="mt-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50">
-                  <p className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${signal.type === 'profile_view' ? 'bg-blue-400' : 'bg-amber-400'}`} />
+                <div className="mt-3 p-3 bg-slate-50/50 rounded-xl border border-slate-100/50 group-hover:bg-blue-50/30 transition-colors">
+                  <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${
+                      signal.type === 'profile_view' ? 'bg-blue-400' : 
+                      signal.type === 'post_comment' ? 'bg-purple-400' :
+                      'bg-amber-400'
+                    }`} />
                     {signal.interaction_text}
                   </p>
                 </div>
+
 
                 <div className="mt-4 flex gap-4">
                   <button className="text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider transition-colors">

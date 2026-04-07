@@ -2,15 +2,48 @@
 
 @theme {
   --font-inter: "Inter", sans-serif;
+  --font-space: "Space Grotesk", sans-serif;
+
+  /* Aliasing Tailwind colors to match jw-ai-consulting brand */
+  --color-slate-900: #1a3a6e; /* text-primary */
+  --color-slate-800: #1a3a6e;
+  --color-slate-600: #4a5e7a; /* text-secondary */
+  --color-slate-500: #4a5e7a; 
+  --color-slate-400: #8a9ab5; /* text-muted */
+  
+  --color-blue-600: #3a6fbc; /* accent-cyan */
+  --color-blue-500: #3a6fbc; 
+  --color-blue-200: rgba(58, 111, 188, 0.3);
+  --color-blue-100: rgba(58, 111, 188, 0.15); /* border-color */
+  --color-blue-50: rgba(58, 111, 188, 0.05);
+
+  --color-green-600: #0ea5e9; /* Re-theme secondary accents for unity if wanted, or leave */
 }
 
 @layer base {
+  :root {
+    --bg-main: #ffffff;
+    --bg-gradient: linear-gradient(135deg, #ffffff 0%, #e2ebf5 100%);
+    --bg-surface: rgba(255, 255, 255, 0.75);
+    --bg-card: rgba(255, 255, 255, 0.9);
+    
+    --text-primary: #1a3a6e;
+    --text-secondary: #4a5e7a;
+    --text-muted: #8a9ab5;
+    
+    --accent-cyan: #3a6fbc;
+    --accent-hover: #225191;
+    --border-color: rgba(58, 111, 188, 0.15);
+  }
+
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: var(--bg-main);
+    background-image: var(--bg-gradient);
+    background-attachment: fixed;
+    color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: var(--font-inter);
+    font-family: var(--font-space);
     overflow-x: hidden;
   }
 }
