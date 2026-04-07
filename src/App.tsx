@@ -345,16 +345,6 @@ function App() {
             
             <div className="grid grid-cols-1 gap-6">
               <WorkflowCard 
-                title="AI Qualification Pipeline" 
-                trigger="When [New Signal] is detected by stealth extension"
-                actions={[
-                  "Enrich data via Proxycurl API",
-                  "Agent evaluates ICP score > 80",
-                  "Push high-intent lead to HubSpot"
-                ]}
-                active={true}
-              />
-              <WorkflowCard 
                 title="Distributed Connection Network" 
                 trigger="When [Campaign CSV] is uploaded"
                 actions={[
@@ -363,16 +353,6 @@ function App() {
                   "Track global acceptance rate"
                 ]}
                 active={true}
-              />
-              <WorkflowCard 
-                title="Competitor Monitor" 
-                trigger="When [Competitor Post] receives a comment"
-                actions={[
-                  "Enrich commentator's profile",
-                  "Alert #sales-team in Slack if ICP matches",
-                  "Auto-like commentator's latest post"
-                ]}
-                active={false}
               />
             </div>
           </div>
