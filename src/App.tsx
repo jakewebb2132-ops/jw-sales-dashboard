@@ -21,7 +21,7 @@ import { SignalsFeed } from './components/SignalsFeed'
 import { Simulator, type Lead, type Signal } from './components/Simulator'
 import MeshCanvas from './components/MeshCanvas'
 
-type TabType = 'Overview' | 'Revealed' | 'Activity' | 'Signals';
+type TabType = 'Overview' | 'Revealed' | 'Activity' | 'Signals' | 'Workflows';
 
 function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -153,6 +153,12 @@ function App() {
             label="Signals Feed" 
             active={activeTab === 'Signals'} 
             onClick={() => setActiveTab('Signals')}
+          />
+          <NavItem 
+            icon={<Zap size={20} />} 
+            label="Workflows & Campaigns" 
+            active={activeTab === 'Workflows'} 
+            onClick={() => setActiveTab('Workflows')}
           />
         </nav>
 
@@ -324,6 +330,53 @@ function App() {
         {activeTab === 'Signals' && (
           <SignalsFeed signals={signals} onSync={syncSignals} />
         )}
+
+        {activeTab === 'Workflows' && (
+          <div className="animate-fade-in">
+             <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                <Zap className="text-blue-600" />
+                Automated Workflows & Enrichment
+              </h2>
+              <button className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-600/30">
+                + Create Workflow
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
+              <WorkflowCard 
+                title="AI Qualification Pipeline" 
+                trigger="When [New Signal] is detected by stealth extension"
+                actions={[
+                  "Enrich data via Proxycurl API",
+                  "Agent evaluates ICP score > 80",
+                  "Push high-intent lead to HubSpot"
+                ]}
+                active={true}
+              />
+              <WorkflowCard 
+                title="Distributed Connection Network" 
+                trigger="When [Campaign CSV] is uploaded"
+                actions={[
+                  "Distribute list into batches of 25",
+                  "Queue connection requests to active team extensions",
+                  "Track global acceptance rate"
+                ]}
+                active={true}
+              />
+              <WorkflowCard 
+                title="Competitor Monitor" 
+                trigger="When [Competitor Post] receives a comment"
+                actions={[
+                  "Enrich commentator's profile",
+                  "Alert #sales-team in Slack if ICP matches",
+                  "Auto-like commentator's latest post"
+                ]}
+                active={false}
+              />
+            </div>
+          </div>
+        )}
       </main>
 
       <Simulator 
@@ -450,6 +503,38 @@ const LeadBadge = ({ icon, label }: { icon: React.ReactNode, label: string }) =>
   <div className="flex items-center gap-2 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-500 shadow-sm">
     <span className="text-blue-600 opacity-70">{icon}</span>
     {label}
+  </div>
+)
+
+const WorkflowCard = ({ title, trigger, actions, active }: { title: string, trigger: string, actions: string[], active: boolean }) => (
+  <div className="glass-card p-8 flex flex-col md:flex-row gap-8 glass-card-hover group">
+      <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider ${active ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                {active ? 'Active' : 'Paused'}
+            </span>
+        </div>
+        <p className="text-sm font-medium text-blue-600 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-center gap-2 mb-4">
+            <Zap size={14} /> {trigger}
+        </p>
+        
+        <div className="space-y-3 relative pl-6">
+            <div className="absolute left-[11px] top-4 bottom-4 w-0.5 bg-slate-200 rounded-full" />
+            {actions.map((action, i) => (
+                <div key={i} className="flex items-center gap-4 text-sm font-medium text-slate-600 relative">
+                    <div className="w-6 h-6 rounded-full bg-white border-2 border-blue-500 text-blue-600 flex items-center justify-center text-[10px] font-bold absolute -left-6 z-10 shadow-sm">{i + 1}</div>
+                    <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex-1">{action}</div>
+                </div>
+            ))}
+        </div>
+      </div>
+      <div className="flex flex-col justify-center items-end border-l border-slate-100 pl-8">
+          <div className="text-3xl font-bold tracking-tight text-slate-900 mb-1">
+              {active ? '2,492' : '0'}
+          </div>
+          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Executions</div>
+      </div>
   </div>
 )
 

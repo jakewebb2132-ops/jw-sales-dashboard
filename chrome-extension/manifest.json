@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Teamfluence Stealth Scraper",
+  "version": "1.0",
+  "description": "Capture LinkedIn signals directly to Sales Command Center matching Teamfluence.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "https://*.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.linkedin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Force Sync Signals"
+  }
+}
