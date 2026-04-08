@@ -18,10 +18,10 @@ import {
   Info
 } from 'lucide-react'
 import { SignalsFeed } from './components/SignalsFeed'
-import { Simulator, type Lead, type Signal } from './components/Simulator'
+import { type Lead, type Signal } from './components/Simulator'
 import MeshCanvas from './components/MeshCanvas'
 
-type TabType = 'Overview' | 'Revealed' | 'Activity' | 'Signals' | 'Workflows';
+type TabType = 'Overview' | 'Leads' | 'Activity' | 'Signals' | 'Workflows';
 
 function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -32,6 +32,7 @@ function App() {
   const [connStatus, setConnStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [connError, setConnError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [showSyncModal, setShowSyncModal] = useState(false);
 
   useEffect(() => {
     initApp();
@@ -105,8 +106,7 @@ function App() {
   };
 
   const syncSignals = () => {
-    // Open instructions for the LinkedIn Bookmarklet sync
-    window.alert("To sync LinkedIn signals: \n1. Open your LinkedIn Profile Views or a specific Post.\n2. Click the 'Stealth Mode' bookmarklet.\n3. Capture happens automatically via 'Auto-Detection'.");
+    setShowSyncModal(true);
   };
 
 
@@ -126,7 +126,7 @@ function App() {
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
             <Zap className="text-white w-6 h-6 fill-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">Executive <span className="text-blue-600">Reveal</span></span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">Command <span className="text-blue-600">Center</span></span>
         </div>
 
         <nav className="space-y-2 flex-1">
@@ -138,9 +138,9 @@ function App() {
           />
           <NavItem 
             icon={<Users size={20} />} 
-            label="Revealed Leads" 
-            active={activeTab === 'Revealed'} 
-            onClick={() => setActiveTab('Revealed')}
+            label="Leads" 
+            active={activeTab === 'Leads'} 
+            onClick={() => setActiveTab('Leads')}
           />
           <NavItem 
             icon={<Activity size={20} />} 
@@ -267,7 +267,10 @@ function App() {
         )}
 
         {activeTab === 'Overview' && (
-          <>
+          <div className="animate-fade-in">
+            {/* Debug - can be removed once verified */}
+            {signals.length > 0 && <div className="hidden">Loaded {signals.length} signals</div>}
+            
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
               <StatCard icon={<Users className="text-blue-600" />} label="Total Leads" value={leads.length.toString()} trend="+12% this week" />
@@ -275,30 +278,46 @@ function App() {
               <StatCard icon={<Activity className="text-purple-600" />} label="Avg. Dwell" value="4m 24s" trend="-2s" />
               <StatCard icon={<Globe className="text-sky-500" />} label="Active Now" value="3" trend="Live traffic" />
             </div>
-
+          
             {/* Lead Feed */}
-            <div className="grid grid-cols-1 gap-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold tracking-tight text-slate-900">Recently Revealed Visitors</h2>
-                <button 
-                  onClick={() => setActiveTab('Revealed')}
-                  className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1 group"
-                >
-                  View all leads <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Recently Revealed Visitors</h2>
+                  <button 
+                    onClick={() => setActiveTab('Leads')}
+                    className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1 group"
+                  >
+                    View all <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+                <LeadList leads={filteredLeads.slice(0, 5)} loading={loading} />
+              </section>
 
-              <LeadList leads={filteredLeads.slice(0, 5)} loading={loading} />
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Recent LinkedIn Signals</h2>
+                  <button 
+                    onClick={() => setActiveTab('Signals')}
+                    className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1 group"
+                  >
+                    View all <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+                <div className="max-h-[600px] overflow-y-auto pr-2">
+                   <SignalsFeed signals={signals.slice(0, 5)} />
+                </div>
+              </section>
             </div>
-          </>
+          </div>
         )}
 
-        {activeTab === 'Revealed' && (
+        {activeTab === 'Leads' && (
           <div className="animate-fade-in">
              <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
                 <Users className="text-blue-600" />
-                Revealed Leads database
+                Leads Database
               </h2>
               <div className="text-sm font-medium text-slate-500">Showing {filteredLeads.length} total profiles</div>
             </div>
@@ -328,7 +347,9 @@ function App() {
         )}
 
         {activeTab === 'Signals' && (
-          <SignalsFeed signals={signals} onSync={syncSignals} />
+          <div className="animate-fade-in">
+            <SignalsFeed signals={signals} onSync={syncSignals} />
+          </div>
         )}
 
         {activeTab === 'Workflows' && (
@@ -358,11 +379,86 @@ function App() {
           </div>
         )}
       </main>
+      
+      {/* LinkedIn Sync Modal */}
+      {showSyncModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-slide-up border border-slate-100">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Zap className="text-blue-600 fill-blue-600" size={24} />
+                  Active LinkedIn Ingest
+                </h2>
+                <p className="text-slate-500 text-sm mt-1">Pull your profile views & post interactions instantly.</p>
+              </div>
+              <button 
+                onClick={() => setShowSyncModal(false)}
+                className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-slate-900"
+              >
+                <RefreshCw size={20} className="rotate-45" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
+                <h4 className="text-blue-900 font-bold mb-2 flex items-center gap-2">
+                  <Info size={16} /> Step 1: Install Scraper Bookmarklet
+                </h4>
+                <p className="text-blue-700 text-sm leading-relaxed mb-4">
+                  Drag this button to your bookmarks bar, or copy the code below.
+                </p>
+                <div className="flex gap-4">
+                   <a 
+                    href={`javascript:(function(){const s=document.createElement('script');s.src='https://cdbvlnxirrfczxdccwbr.supabase.co/storage/v1/object/public/scripts/li-scraper.js?t='+Date.now();document.body.appendChild(s);})();`} 
+                    className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center gap-2"
+                    onClick={(e) => e.preventDefault()}
+                  >
+                    Sync LinkedIn Data
+                  </a>
+                  <button 
+                    onClick={() => {
+                        navigator.clipboard.writeText(`javascript:(function(){const s=document.createElement('script');s.src='https://cdbvlnxirrfczxdccwbr.supabase.co/storage/v1/object/public/scripts/li-scraper.js?t='+Date.now();document.body.appendChild(s);})();`);
+                        alert("Copied to clipboard!");
+                    }}
+                    className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
+                  >
+                    Copy Script Code
+                  </button>
+                </div>
+              </div>
 
-      <Simulator 
-        onNewLead={(newLead) => setLeads(prev => [newLead, ...prev])} 
-        onNewSignal={(newSignal) => setSignals(prev => [newSignal, ...prev])}
-      />
+              <div className="space-y-4">
+                <h4 className="text-slate-900 font-bold flex items-center gap-2">
+                  <TrendingUp size={16} className="text-green-600" /> Step 2: Trigger the Pull
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all bg-slate-50/50">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target 1</p>
+                    <p className="text-xs font-bold text-slate-700 mb-2">Profile Viewers</p>
+                    <p className="text-[11px] text-slate-500 mb-3">Open your LinkedIn "Who's viewed your profile" page then click the Bookmarklet.</p>
+                    <a href="https://www.linkedin.com/me/profile-views/" target="_blank" rel="noreferrer" className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1">Open Page <ExternalLink size={10} /></a>
+                  </div>
+                   <div className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all bg-slate-50/50">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target 2</p>
+                    <p className="text-xs font-bold text-slate-700 mb-2">Post Interactions</p>
+                    <p className="text-[11px] text-slate-500 mb-3">Open any LinkedIn post you wrote, click "reactions", then click the Bookmarklet.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setShowSyncModal(false)}
+                className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl shadow-slate-900/20"
+              >
+                I've Synced the Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

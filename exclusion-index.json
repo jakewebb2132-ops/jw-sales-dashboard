@@ -1,0 +1,22 @@
+{
+  "excluded_names": [
+    "Anonymous Visitor",
+    "LinkedIn Member",
+    "View the full details of up to 3 people for free",
+    "Manage settings",
+    "View"
+  ],
+  "excluded_patterns": [
+    "recruiters",
+    "found you through",
+    "senior leaders who share",
+    "connections who may be hiring",
+    "work at companies with open roles",
+    "work at .* (summary)",
+    "View the full details"
+  ],
+  "excluded_entities": [
+    "LinkedIn",
+    "Internal Team Content"
+  ]
+}

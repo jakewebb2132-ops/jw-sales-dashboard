@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Teamfluence Stealth Scraper",
-  "version": "1.0",
-  "description": "Capture LinkedIn signals directly to Sales Command Center matching Teamfluence.",
+  "name": "JW Sales Command — LinkedIn Scout",
+  "version": "2.0",
+  "description": "Captures LinkedIn profile view signals and syncs them to the Sales Command Center dashboard.",
   "permissions": [
     "activeTab",
     "storage",
@@ -17,9 +17,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.linkedin.com/*"],
+      "matches": [
+        "*://www.linkedin.com/analytics/profile-views/*",
+        "*://www.linkedin.com/analytics/profile-views"
+      ],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "action": {
