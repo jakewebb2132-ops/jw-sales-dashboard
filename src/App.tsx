@@ -21,7 +21,7 @@ import { SignalsFeed } from './components/SignalsFeed'
 import { type Lead, type Signal } from './components/Simulator'
 import MeshCanvas from './components/MeshCanvas'
 
-type TabType = 'Overview' | 'Leads' | 'Activity' | 'Signals' | 'Workflows';
+type TabType = 'Overview' | 'Leads' | 'Activity' | 'Signals' | 'Recruiters' | 'Workflows';
 
 function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -155,6 +155,12 @@ function App() {
             onClick={() => setActiveTab('Signals')}
           />
           <NavItem 
+            icon={<Users size={20} className="text-purple-600" />} 
+            label="Recruiters" 
+            active={activeTab === 'Recruiters'} 
+            onClick={() => setActiveTab('Recruiters')}
+          />
+          <NavItem 
             icon={<Zap size={20} />} 
             label="Workflows & Campaigns" 
             active={activeTab === 'Workflows'} 
@@ -275,7 +281,7 @@ function App() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
               <StatCard icon={<Users className="text-blue-600" />} label="Total Leads" value={leads.length.toString()} trend="+12% this week" />
               <StatCard icon={<TrendingUp className="text-green-600" />} label="High Intent" value={leads.filter(l => l.intent_score > 50).length.toString()} trend="+5% since yesterday" />
-              <StatCard icon={<Activity className="text-purple-600" />} label="Avg. Dwell" value="4m 24s" trend="-2s" />
+              <StatCard icon={<Users className="text-purple-600" />} label="Recruiters" value={signals.filter(s => s.type === 'recruiter_view').length.toString()} trend="Targeted views" />
               <StatCard icon={<Globe className="text-sky-500" />} label="Active Now" value="3" trend="Live traffic" />
             </div>
           
@@ -348,7 +354,18 @@ function App() {
 
         {activeTab === 'Signals' && (
           <div className="animate-fade-in">
-            <SignalsFeed signals={signals} onSync={syncSignals} />
+            <SignalsFeed signals={signals.filter(s => s.type !== 'recruiter_view')} onSync={syncSignals} />
+          </div>
+        )}
+
+        {activeTab === 'Recruiters' && (
+          <div className="animate-fade-in">
+            <SignalsFeed 
+              signals={signals.filter(s => s.type === 'recruiter_view')} 
+              onSync={syncSignals} 
+              title="Recruiter Intelligence"
+              subtitle="Specialized tracking for recruiter profile views and scans"
+            />
           </div>
         )}
 

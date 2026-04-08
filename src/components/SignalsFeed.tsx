@@ -1,19 +1,21 @@
 import { type Signal } from './Simulator'
-import { Zap, Clock, ExternalLink, MessageSquare, Eye, ThumbsUp } from 'lucide-react'
+import { Zap, Clock, ExternalLink, MessageSquare, Eye, ThumbsUp, Search } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface SignalsFeedProps {
   signals: Signal[];
   onSync?: () => void;
+  title?: string;
+  subtitle?: string;
 }
 
-export const SignalsFeed = ({ signals, onSync }: SignalsFeedProps) => {
+export const SignalsFeed = ({ signals, onSync, title, subtitle }: SignalsFeedProps) => {
   return (
     <div className="space-y-4 max-w-4xl mx-auto py-6">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Interaction Intelligence</h2>
-          <p className="text-slate-500 text-sm">Real-time intent signals from your LinkedIn ecosystem</p>
+          <h2 className="text-2xl font-bold text-slate-900">{title || "Interaction Intelligence"}</h2>
+          <p className="text-slate-500 text-sm">{subtitle || "Real-time intent signals from your LinkedIn ecosystem"}</p>
         </div>
         <div className="flex gap-4 items-center">
           <button 
@@ -53,11 +55,13 @@ export const SignalsFeed = ({ signals, onSync }: SignalsFeedProps) => {
                 />
                 <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-lg flex items-center justify-center border-2 border-white shadow-sm ${
                   signal.type === 'profile_view' ? 'bg-blue-600 text-white' : 
+                  signal.type === 'recruiter_view' ? 'bg-purple-600 text-white' :
                   signal.type === 'post_comment' ? 'bg-purple-600 text-white' :
                   signal.type === 'post_reaction' ? 'bg-amber-500 text-white' :
                   'bg-slate-500 text-white'
                 }`}>
                   {signal.type === 'profile_view' ? <Eye size={12} /> : 
+                   signal.type === 'recruiter_view' ? <Search size={12} /> :
                    signal.type === 'post_comment' ? <MessageSquare size={12} /> :
                    <ThumbsUp size={12} />}
                 </div>
@@ -88,6 +92,7 @@ export const SignalsFeed = ({ signals, onSync }: SignalsFeedProps) => {
                   <p className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${
                       signal.type === 'profile_view' ? 'bg-blue-400' : 
+                      signal.type === 'recruiter_view' ? 'bg-purple-400' :
                       signal.type === 'post_comment' ? 'bg-purple-400' :
                       signal.type === 'post_reaction' ? 'bg-amber-400' :
                       'bg-slate-400'

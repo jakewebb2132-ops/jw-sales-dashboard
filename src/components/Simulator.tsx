@@ -22,7 +22,7 @@ export interface Lead {
 
 export interface Signal {
   id: string;
-  type: 'profile_view' | 'post_reaction' | 'post_comment';
+  type: 'profile_view' | 'post_reaction' | 'post_comment' | 'recruiter_view';
   timestamp: string;
   person_name: string;
   person_title: string;

@@ -19,7 +19,9 @@
     {
       "matches": [
         "*://www.linkedin.com/analytics/profile-views/*",
-        "*://www.linkedin.com/analytics/profile-views"
+        "*://www.linkedin.com/analytics/profile-views",
+        "*://www.linkedin.com/analytics/recruiter-views/*",
+        "*://www.linkedin.com/analytics/recruiter-views"
       ],
       "js": ["content.js"],
       "run_at": "document_start"

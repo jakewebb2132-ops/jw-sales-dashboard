@@ -10,8 +10,6 @@
 
 const EXCLUSION_PATTERNS = [
   /^LinkedIn Member$/i,
-  /^Anonymous Visitor$/i,
-  /recruiters?$/i,
   /found you through/i,
   /senior leaders? who share/i,
   /connections? who may be hiring/i,
@@ -33,8 +31,10 @@ function parseVoyagerViewer(viewer) {
     // LinkedIn's Voyager API returns deeply nested objects — these paths
     // are stable as of 2025 for the profileViewers endpoint
     const name = viewer?.name?.text
-      || viewer?.memberDistance?.localizedFirstName + ' ' + viewer?.memberDistance?.localizedLastName
+      || (viewer?.memberDistance?.localizedFirstName ? (viewer.memberDistance.localizedFirstName + ' ' + (viewer.memberDistance.localizedLastName || '')) : null)
       || viewer?.memberInfo?.memberName
+      || viewer?.actorName?.text
+      || viewer?.title?.text
       || null;
 
     const headline = viewer?.occupation
@@ -86,7 +86,7 @@ class InterceptedXHR extends OriginalXHR {
     this.addEventListener('load', () => {
       if (
         this._url.includes('/voyager/api/') &&
-        (this._url.includes('profileViewers') || this._url.includes('profile-views') || this._url.includes('analyticsFor'))
+        (this._url.includes('profileViewers') || this._url.includes('profile-views') || this._url.includes('analyticsFor') || this._url.includes('recruiter-views'))
       ) {
         try {
           const json = JSON.parse(this.responseText);
@@ -110,7 +110,7 @@ window.fetch = async function (...args) {
   const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
   if (
     url.includes('/voyager/api/') &&
-    (url.includes('profileViewers') || url.includes('profile-views') || url.includes('analyticsFor'))
+    (url.includes('profileViewers') || url.includes('profile-views') || url.includes('analyticsFor') || url.includes('recruiter-views'))
   ) {
     const clone = response.clone();
     clone.json().then(json => handleVoyagerResponse(json, url)).catch(() => {});
@@ -192,7 +192,7 @@ function scrapeViewerFromDOM(card) {
 }
 
 function domScrape() {
-  if (!window.location.href.includes('/analytics/profile-views')) return;
+  if (!window.location.href.includes('/analytics/profile-views') && !window.location.href.includes('/analytics/recruiter-views')) return;
 
   let found = false;
   for (const selector of DOM_SELECTORS) {
@@ -236,26 +236,30 @@ function processViewer(rawViewer, source) {
   if (PROCESSED_IDS.has(dedupeKey)) return;
   PROCESSED_IDS.add(dedupeKey);
 
+  const isRecruiterPage = window.location.href.includes('/recruiter-views');
+  
   const signal = {
-    type: 'profile_view',
+    type: isRecruiterPage ? 'recruiter_view' : 'profile_view',
     person_name: parsed.name,
     person_title: parsed.title || null,
     person_company: parsed.company || null,
     person_image: parsed.photo || null,
-    linkedin_url: parsed.profileUrl || 'https://www.linkedin.com/analytics/profile-views/',
-    interaction_text: `${parsed.name} viewed your profile${parsed.company ? ` · ${parsed.company}` : ''}`,
+    linkedin_url: parsed.profileUrl || window.location.href,
+    interaction_text: isRecruiterPage 
+      ? `${parsed.name} (Recruiter) viewed your profile`
+      : `${parsed.name} viewed your profile${parsed.company ? ` · ${parsed.company}` : ''}`,
     timestamp: parsed.viewedAt || new Date().toISOString(),
   };
 
-  console.log('[JW-Scout] ✅ Signal captured:', signal.person_name, '|', signal.person_company);
+  console.log(`[JW-Scout] ✅ ${isRecruiterPage ? 'Recruiter' : 'Signal'} captured:`, signal.person_name);
   chrome.runtime.sendMessage({ action: 'SYNC_SIGNAL', payload: signal });
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // BOOT: Start DOM observer when on the profile-views page
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-if (window.location.href.includes('/analytics/profile-views')) {
-  console.log('[JW-Scout] 🚀 Profile Views page detected. Activating scrapers.');
+if (window.location.href.includes('/analytics/profile-views') || window.location.href.includes('/analytics/recruiter-views')) {
+  console.log('[JW-Scout] 🚀 LinkedIn Analytics page detected. Activating scrapers.');
   
   // Run DOM scrape after initial load
   setTimeout(domScrape, 2000);
