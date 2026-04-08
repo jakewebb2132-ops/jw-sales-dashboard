@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JW Sales Command — LinkedIn Scout",
-  "version": "2.0",
+  "version": "3.0",
   "description": "Captures LinkedIn profile view signals and syncs them to the Sales Command Center dashboard.",
   "permissions": [
     "activeTab",
@@ -9,7 +9,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://*.linkedin.com/*",
+    "https://*.linkedin.com/*",
     "https://*.supabase.co/*"
   ],
   "background": {
@@ -25,6 +25,12 @@
       ],
       "js": ["content.js"],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["bridge.js"],
+      "matches": ["https://www.linkedin.com/*"]
     }
   ],
   "action": {

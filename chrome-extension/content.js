@@ -1,13 +1,37 @@
 /**
- * JW Sales Command — LinkedIn Signal Scraper v2
- * Target: https://www.linkedin.com/analytics/profile-views/
- *
+ * JW Sales Command — LinkedIn Scout v3
+ * 
  * Strategy:
- *   1. Intercept LinkedIn's own Voyager API calls (XHR hooking) to get clean JSON
- *   2. Fall back to DOM scraping if the XHR hook misses anything
- *   3. Filter junk signals with the exclusion list before sending
+ *   1. Inject bridge.js into the MAIN world to hook API calls
+ *   2. Listen for 'VOYAGER_DATA' messages from the bridge
+ *   3. Fall back to DOM scraping
  */
 
+console.log('[JW-Scout] 🛰️ Content Script Initialized.');
+
+// 1. Inject the bridge script
+function injectBridge() {
+  try {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('bridge.js');
+    script.onload = () => script.remove();
+    (document.head || document.documentElement).appendChild(script);
+    console.log('[JW-Scout] 🛠️ Bridge script injected.');
+  } catch (e) {
+    console.error('[JW-Scout] ❌ Injection failed:', e);
+  }
+}
+
+injectBridge();
+
+// 2. Listen for data from the bridge
+window.addEventListener('message', (event) => {
+  if (event.data?.source === 'jw-scout-bridge' && event.data?.type === 'VOYAGER_DATA') {
+    handleVoyagerResponse(event.data.data, event.data.url);
+  }
+});
+
+const PROCESSED_IDS = new Set();
 const EXCLUSION_PATTERNS = [
   /^LinkedIn Member$/i,
   /found you through/i,
@@ -19,8 +43,6 @@ const EXCLUSION_PATTERNS = [
   /^Manage settings$/i,
 ];
 
-const PROCESSED_IDS = new Set();
-
 function isJunk(name) {
   if (!name || name.length === 0) return true;
   return EXCLUSION_PATTERNS.some(pattern => pattern.test(name));
@@ -28,7 +50,6 @@ function isJunk(name) {
 
 function parseVoyagerViewer(viewer) {
   try {
-    // LinkedIn's Voyager API is a moving target. We check every known "Name" location.
     const name = viewer?.name?.text
       || viewer?.memberInfo?.memberName
       || viewer?.actorName?.text
@@ -44,7 +65,6 @@ function parseVoyagerViewer(viewer) {
       || viewer?.subtitle?.text
       || null;
 
-    // Parse title and company from headline (e.g. "Software Engineer at Google")
     let title = null, company = null;
     if (headline) {
       const atIdx = headline.lastIndexOf(' at ');
@@ -67,7 +87,6 @@ function parseVoyagerViewer(viewer) {
       || viewer?.navigationContext?.actionTarget
       || null;
 
-    // Aggressive image resolution
     let photo = null;
     const imgData = viewer?.profilePicture || viewer?.image || viewer?.avatar;
     if (imgData?.displayImageReference?.vectorImage) {
@@ -87,194 +106,86 @@ function parseVoyagerViewer(viewer) {
 
     return { name, title, company, profileUrl, photo, viewedAt };
   } catch (e) {
-    console.error('[JW-Scout] Parse error:', e);
     return null;
   }
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// STRATEGY 1: Hook XMLHttpRequest to intercept Voyager API calls
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const OriginalXHR = window.XMLHttpRequest;
-
-class InterceptedXHR extends OriginalXHR {
-  constructor() {
-    super();
-    this._url = '';
-    this.addEventListener('load', () => {
-      if (
-        this._url.includes('/voyager/api/') &&
-        (this._url.includes('profileViewers') || this._url.includes('profile-views') || this._url.includes('analyticsFor') || this._url.includes('recruiter-views'))
-      ) {
-        try {
-          const json = JSON.parse(this.responseText);
-          handleVoyagerResponse(json, this._url);
-        } catch (_) {}
-      }
-    });
-  }
-  open(method, url, ...args) {
-    this._url = url;
-    super.open(method, url, ...args);
-  }
-}
-
-window.XMLHttpRequest = InterceptedXHR;
-
-// Also hook fetch() for newer LinkedIn API calls
-const originalFetch = window.fetch;
-window.fetch = async function (...args) {
-  const response = await originalFetch(...args);
-  const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-  if (
-    url.includes('/voyager/api/') &&
-    (url.includes('profileViewers') || url.includes('profile-views') || url.includes('analyticsFor') || url.includes('recruiter-views'))
-  ) {
-    const clone = response.clone();
-    clone.json().then(json => handleVoyagerResponse(json, url)).catch(() => {});
-  }
-  return response;
-};
-
 function handleVoyagerResponse(json, url) {
-  console.log('[JW-Scout] 🔍 Intercepted Voyager API:', url);
-
-  // Recursively search for viewer elements in the JSON
   let viewers = [];
-  
   const findViewers = (obj) => {
     if (!obj || typeof obj !== 'object') return;
-    
-    // Check if this object is a viewer list
     if (Array.isArray(obj)) {
         if (obj.some(item => item?.$type?.includes('Viewer') || item?.$type?.includes('ProfileView') || item?.memberInfo || item?.name)) {
             viewers = viewers.concat(obj);
-        } else {
-            obj.forEach(findViewers);
-        }
-    } else {
-        Object.values(obj).forEach(findViewers);
-    }
+        } else obj.forEach(findViewers);
+    } else Object.values(obj).forEach(findViewers);
   };
 
-  // If standard paths fail, fall back to recursive search
   viewers = json?.data?.profileViewsByTimeRange?.elements ||
             json?.elements ||
             json?.data?.elements ||
             json?.included?.filter(i => i?.$type?.includes('Viewer') || i?.$type?.includes('ProfileView')) ||
             [];
 
-  if (viewers.length === 0) {
-      findViewers(json);
-  }
+  if (viewers.length === 0) findViewers(json);
 
-  // Filter out the non-viewer elements that findViewers might have picked up
   const validViewers = viewers.filter(v => v && (v.name || v.memberInfo || v.actorName || v.title));
-
-  if (validViewers.length === 0) {
-    console.log('[JW-Scout] ⚠️ No valid viewers found in response shape.');
-    return;
+  if (validViewers.length > 0) {
+    console.log(`[JW-Scout] 💎 API: Found ${validViewers.length} viewers`);
+    validViewers.forEach(viewer => processViewer(viewer, 'api'));
   }
-
-  console.log(`[JW-Scout] Found ${validViewers.length} viewers in API response`);
-  validViewers.forEach(viewer => processViewer(viewer, 'api'));
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// STRATEGY 2: DOM scraping fallback for profile-views page
+// DOM scraping fallback
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const DOM_SELECTORS = [
-  // Premium profile viewers page cards
-  '[data-view-name="profile-analytics-viewers-card"]',
-  '.profile-analytics-viewers__card',
-  '.viewer-card',
-  // Fallback: list items on the analytics page
-  'li[class*="analytics-viewer"]',
-  'li[class*="profile-view"]',
-  // Generic: any LI with a profile link inside
-  'li:has(a[href*="/in/"])',
-];
-
-function scrapeViewerFromDOM(card) {
-  // Try multiple name selectors as LinkedIn obfuscates class names
-  const nameEl =
-    card.querySelector('span[aria-hidden="true"]') ||
-    card.querySelector('[class*="name"]') ||
-    card.querySelector('h3') ||
-    card.querySelector('h2') ||
-    card.querySelector('strong') ||
-    card.querySelector('.member-analytics-addon-entity-list__link');
-
-  const name = nameEl?.innerText?.trim() || null;
-
-  const titleEl =
-    card.querySelector('[class*="headline"]') ||
-    card.querySelector('[class*="title"]') ||
-    card.querySelector('p');
-
-  const headline = titleEl?.innerText?.trim() || null;
-
-  let title = null, company = null;
-  if (headline) {
-    const atIdx = headline.lastIndexOf(' at ');
-    if (atIdx > -1) {
-      title = headline.substring(0, atIdx).trim();
-      company = headline.substring(atIdx + 4).trim();
-    } else {
-      title = headline;
-    }
-  }
-
-  const linkEl = card.querySelector('a[href*="/in/"]');
-  const profileUrl = linkEl?.href || null;
-
-  const imgEl = card.querySelector('img');
-  const photo = imgEl?.src || null;
-
-  return { name, title, company, profileUrl, photo, viewedAt: new Date().toISOString() };
-}
-
 function domScrape() {
   if (!window.location.href.includes('/analytics/profile-views') && !window.location.href.includes('/analytics/recruiter-views')) return;
 
-  let found = false;
-  for (const selector of DOM_SELECTORS) {
-    try {
-      const cards = document.querySelectorAll(`${selector}:not([data-jw-scraped])`);
-      if (cards.length > 0) {
-        found = true;
-        cards.forEach(card => {
-          card.setAttribute('data-jw-scraped', 'true');
-          const viewer = scrapeViewerFromDOM(card);
-          processViewer(viewer, 'dom');
-        });
-      }
-    } catch (_) {}
-  }
-  if (!found && document.querySelector('main')) {
-    // Log the page structure to help identify the right elements
-    console.log('[JW-Scout] DOM selectors found nothing. Body preview:', document.querySelector('main')?.innerHTML?.slice(0, 500));
-  }
+  const selectors = [
+    'span[aria-hidden="true"]',
+    '[class*="name"]',
+    'h3',
+    '.member-analytics-addon-entity-list__link'
+  ];
+
+  let cards = document.querySelectorAll(`[class*="analytics-viewer"]:not([data-jw-scraped]), [class*="card"]:has(a[href*="/in/"]):not([data-jw-scraped])`);
+  
+  cards.forEach(card => {
+    card.setAttribute('data-jw-scraped', 'true');
+    let name = null;
+    for (const sel of selectors) {
+        const el = card.querySelector(sel);
+        if (el?.innerText?.trim().length > 3) {
+            name = el.innerText.trim();
+            break;
+        }
+    }
+    
+    if (name) {
+        const titleEl = card.querySelector('[class*="headline"]') || card.querySelector('p');
+        const imgEl = card.querySelector('img');
+        const linkEl = card.querySelector('a[href*="/in/"]');
+        
+        processViewer({
+            name,
+            title: titleEl?.innerText?.trim(),
+            photo: imgEl?.src,
+            profileUrl: linkEl?.href,
+            viewedAt: new Date().toISOString()
+        }, 'dom');
+    }
+  });
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SHARED: Process a viewer from either source
+// SHARED: Process a viewer
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function processViewer(rawViewer, source) {
-  let parsed;
-  if (source === 'api') {
-    parsed = parseVoyagerViewer(rawViewer);
-  } else {
-    parsed = rawViewer;
-  }
+  const parsed = (source === 'api') ? parseVoyagerViewer(rawViewer) : rawViewer;
 
-  if (!parsed || !parsed.name) return;
-  if (isJunk(parsed.name)) {
-    console.log('[JW-Scout] Filtered (junk):', parsed.name);
-    return;
-  }
+  if (!parsed || !parsed.name || isJunk(parsed.name)) return;
 
-  // Deduplicate by profile URL or name
   const dedupeKey = parsed.profileUrl || parsed.name;
   if (PROCESSED_IDS.has(dedupeKey)) return;
   PROCESSED_IDS.add(dedupeKey);
@@ -289,26 +200,15 @@ function processViewer(rawViewer, source) {
     person_image: parsed.photo || null,
     linkedin_url: parsed.profileUrl || window.location.href,
     interaction_text: isRecruiterPage 
-      ? `${parsed.name} (Recruiter) viewed your profile`
+      ? `${parsed.name} viewed your profile (Recruiter)`
       : `${parsed.name} viewed your profile${parsed.company ? ` · ${parsed.company}` : ''}`,
     timestamp: parsed.viewedAt || new Date().toISOString(),
   };
 
-  console.log(`[JW-Scout] ✅ ${isRecruiterPage ? 'Recruiter' : 'Signal'} captured:`, signal.person_name);
   chrome.runtime.sendMessage({ action: 'SYNC_SIGNAL', payload: signal });
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// BOOT: Start DOM observer when on the profile-views page
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-if (window.location.href.includes('/analytics/profile-views') || window.location.href.includes('/analytics/recruiter-views')) {
-  console.log('[JW-Scout] 🚀 LinkedIn Analytics page detected. Activating scrapers.');
-  
-  // Run DOM scrape after initial load
-  setTimeout(domScrape, 2000);
-  setTimeout(domScrape, 5000);
-
-  // Watch for dynamically loaded content (infinite scroll, pagination)
-  const observer = new MutationObserver(() => domScrape());
-  observer.observe(document.body, { childList: true, subtree: true });
+// Watch for DOM changes
+if (window.location.href.includes('/analytics/')) {
+    setInterval(domScrape, 3000);
 }
