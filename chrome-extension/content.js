@@ -28,18 +28,20 @@ function isJunk(name) {
 
 function parseVoyagerViewer(viewer) {
   try {
-    // LinkedIn's Voyager API returns deeply nested objects — these paths
-    // are stable as of 2025 for the profileViewers endpoint
+    // LinkedIn's Voyager API is a moving target. We check every known "Name" location.
     const name = viewer?.name?.text
-      || (viewer?.memberDistance?.localizedFirstName ? (viewer.memberDistance.localizedFirstName + ' ' + (viewer.memberDistance.localizedLastName || '')) : null)
       || viewer?.memberInfo?.memberName
       || viewer?.actorName?.text
       || viewer?.title?.text
+      || (viewer?.memberDistance?.localizedFirstName ? `${viewer.memberDistance.localizedFirstName} ${viewer.memberDistance.localizedLastName || ''}`.trim() : null)
+      || viewer?.navigationContext?.actionTargetTitle
       || null;
 
     const headline = viewer?.occupation
       || viewer?.memberInfo?.memberHeadlineText
       || viewer?.headline?.text
+      || viewer?.subtext?.text
+      || viewer?.subtitle?.text
       || null;
 
     // Parse title and company from headline (e.g. "Software Engineer at Google")
@@ -50,18 +52,33 @@ function parseVoyagerViewer(viewer) {
         title = headline.substring(0, atIdx).trim();
         company = headline.substring(atIdx + 4).trim();
       } else {
-        title = headline;
+        const dividerIdx = headline.indexOf(' · ');
+        if (dividerIdx > -1) {
+            title = headline.substring(0, dividerIdx).trim();
+            company = headline.substring(dividerIdx + 3).trim();
+        } else {
+            title = headline;
+        }
       }
     }
 
     const profileUrl = viewer?.navigationUrl
-      || viewer?.memberInfo?.publicIdentifier
-        ? `https://www.linkedin.com/in/${viewer?.memberInfo?.publicIdentifier}`
-        : null;
+      || (viewer?.memberInfo?.publicIdentifier ? `https://www.linkedin.com/in/${viewer.memberInfo.publicIdentifier}` : null)
+      || viewer?.navigationContext?.actionTarget
+      || null;
 
-    const photo = viewer?.profilePicture?.displayImageReference?.vectorImage?.artifacts?.[0]?.fileIdentifyingUrlPathSegment
-      ? `https://media.licdn.com/dms/image/${viewer?.profilePicture?.displayImageReference?.vectorImage?.rootUrl || ''}${viewer?.profilePicture?.displayImageReference?.vectorImage?.artifacts?.[0]?.fileIdentifyingUrlPathSegment}`
-      : null;
+    // Aggressive image resolution
+    let photo = null;
+    const imgData = viewer?.profilePicture || viewer?.image || viewer?.avatar;
+    if (imgData?.displayImageReference?.vectorImage) {
+        const root = imgData.displayImageReference.vectorImage.rootUrl || '';
+        const segment = imgData.displayImageReference.vectorImage.artifacts?.[0]?.fileIdentifyingUrlPathSegment;
+        if (segment) photo = `${root}${segment}`;
+    } else if (imgData?.attributes?.[0]?.detailData?.nonUnderlineLink?.actionTarget) {
+        photo = imgData.attributes[0].detailData.nonUnderlineLink.actionTarget;
+    } else if (typeof imgData === 'string' && imgData.startsWith('http')) {
+        photo = imgData;
+    }
 
     const viewedAt = viewer?.lastViewedAt
       || viewer?.viewedAt
@@ -70,6 +87,7 @@ function parseVoyagerViewer(viewer) {
 
     return { name, title, company, profileUrl, photo, viewedAt };
   } catch (e) {
+    console.error('[JW-Scout] Parse error:', e);
     return null;
   }
 }
@@ -119,24 +137,47 @@ window.fetch = async function (...args) {
 };
 
 function handleVoyagerResponse(json, url) {
-  console.log('[JW-Scout] Intercepted Voyager API:', url);
+  console.log('[JW-Scout] 🔍 Intercepted Voyager API:', url);
 
-  // Try multiple known response shapes
-  const viewers =
-    json?.data?.profileViewsByTimeRange?.elements ||
-    json?.elements ||
-    json?.data?.elements ||
-    json?.included?.filter(i => i?.$type?.includes('Viewer') || i?.$type?.includes('ProfileView')) ||
-    [];
+  // Recursively search for viewer elements in the JSON
+  let viewers = [];
+  
+  const findViewers = (obj) => {
+    if (!obj || typeof obj !== 'object') return;
+    
+    // Check if this object is a viewer list
+    if (Array.isArray(obj)) {
+        if (obj.some(item => item?.$type?.includes('Viewer') || item?.$type?.includes('ProfileView') || item?.memberInfo || item?.name)) {
+            viewers = viewers.concat(obj);
+        } else {
+            obj.forEach(findViewers);
+        }
+    } else {
+        Object.values(obj).forEach(findViewers);
+    }
+  };
 
-  if (!viewers || viewers.length === 0) {
-    // Log the full response to help debug what shape it is
-    console.log('[JW-Scout] No viewers found in response. Keys:', Object.keys(json));
+  // If standard paths fail, fall back to recursive search
+  viewers = json?.data?.profileViewsByTimeRange?.elements ||
+            json?.elements ||
+            json?.data?.elements ||
+            json?.included?.filter(i => i?.$type?.includes('Viewer') || i?.$type?.includes('ProfileView')) ||
+            [];
+
+  if (viewers.length === 0) {
+      findViewers(json);
+  }
+
+  // Filter out the non-viewer elements that findViewers might have picked up
+  const validViewers = viewers.filter(v => v && (v.name || v.memberInfo || v.actorName || v.title));
+
+  if (validViewers.length === 0) {
+    console.log('[JW-Scout] ⚠️ No valid viewers found in response shape.');
     return;
   }
 
-  console.log(`[JW-Scout] Found ${viewers.length} viewers in API response`);
-  viewers.forEach(viewer => processViewer(viewer, 'api'));
+  console.log(`[JW-Scout] Found ${validViewers.length} viewers in API response`);
+  validViewers.forEach(viewer => processViewer(viewer, 'api'));
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -157,10 +198,12 @@ const DOM_SELECTORS = [
 function scrapeViewerFromDOM(card) {
   // Try multiple name selectors as LinkedIn obfuscates class names
   const nameEl =
+    card.querySelector('span[aria-hidden="true"]') ||
     card.querySelector('[class*="name"]') ||
     card.querySelector('h3') ||
     card.querySelector('h2') ||
-    card.querySelector('strong');
+    card.querySelector('strong') ||
+    card.querySelector('.member-analytics-addon-entity-list__link');
 
   const name = nameEl?.innerText?.trim() || null;
 
