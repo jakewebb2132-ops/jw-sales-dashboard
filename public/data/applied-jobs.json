@@ -1,0 +1,37 @@
+{
+  "applied_jobs": [
+    {
+      "job_id": "li-12345",
+      "title": "Head of AI Growth",
+      "company": "Scale AI",
+      "location": "San Francisco, CA (Remote)",
+      "apply_type": "easy_apply",
+      "status": "submitted",
+      "applied_date": "2026-04-12",
+      "applied_at": "2026-04-12T08:30:00Z",
+      "notes": "Fast-tracked via LinkedIn Easy Apply."
+    },
+    {
+      "job_id": "li-67890",
+      "title": "Principal Solutions Architect",
+      "company": "Anthropic",
+      "location": "New York, NY",
+      "apply_type": "external",
+      "status": "needs_manual_review",
+      "applied_date": "2026-04-12",
+      "applied_at": "2026-04-12T09:15:00Z",
+      "notes": "Requires custom cover letter for safety alignment."
+    },
+    {
+      "job_id": "li-55555",
+      "title": "Director of GTM Strategy",
+      "company": "OpenAI",
+      "location": "Remote",
+      "apply_type": "easy_apply",
+      "status": "error",
+      "applied_date": "2026-04-11",
+      "applied_at": "2026-04-11T14:20:00Z",
+      "notes": "Error: Timeout during form submission."
+    }
+  ]
+}

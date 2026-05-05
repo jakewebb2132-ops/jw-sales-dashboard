@@ -1,0 +1,41 @@
+name: End of Day Learning & Sync
+
+on:
+  schedule:
+    # 11:59 PM CST = 05:59 UTC
+    - cron: '59 5 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  learning-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for git log review
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Session Review (Self-Learning)
+        run: node workspace/skills/session-review/run.js
+
+      - name: Run Context Distiller (NotebookLM Sync)
+        run: node workspace/skills/context-distiller/run.js
+
+      - name: Commit & Push Learnings
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "Sales Command Agent"
+          git config --global user.email "agent@jwaiconsulting.com"
+          git add wiki/ knowledge/ LEARNINGS.md memory/
+          git commit -m "🤖 End-of-Day Learning Cycle: Updating Knowledge Registry [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: node workspace/skills/slack-notify/run.js "End-of-Day Learning Cycle complete. Knowledge registry updated and synced to GitHub."

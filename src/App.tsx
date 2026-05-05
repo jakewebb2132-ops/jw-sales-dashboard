@@ -1,38 +1,45 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase, checkSupabaseConnection } from './lib/supabase'
-import { 
-  Users, 
-  Activity, 
-  TrendingUp, 
-  Zap, 
-  Search, 
-  LayoutDashboard, 
-  Globe, 
+import {
+  Users,
+  Search,
+  LayoutDashboard,
+  Globe,
   ExternalLink,
   ChevronRight,
-  ShieldCheck,
-  Bell,
-  ArrowRight,
   AlertTriangle,
   RefreshCw,
-  Info
+  Info,
+  Activity
 } from 'lucide-react'
-import { SignalsFeed } from './components/SignalsFeed'
-import { type Lead, type Signal } from './components/Simulator'
 import MeshCanvas from './components/MeshCanvas'
 
-type TabType = 'Overview' | 'Leads' | 'Activity' | 'Signals' | 'Recruiters' | 'Workflows';
+type TabType = 'Overview' | 'Leads';
+
+export interface Lead {
+  id: string;
+  visitor_id: string;
+  ip_address: string;
+  full_name: string;
+  job_title: string;
+  company_name: string;
+  company_domain: string;
+  linkedin_url: string;
+  profile_image_url: string;
+  intent_score: number;
+  visit_count: number;
+  last_page_viewed: string;
+  last_seen: string;
+}
 
 function App() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('Overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [connStatus, setConnStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [connError, setConnError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
-  const [showSyncModal, setShowSyncModal] = useState(false);
 
   useEffect(() => {
     initApp();
@@ -44,16 +51,8 @@ function App() {
       })
       .subscribe();
 
-    const signalsChannel = supabase
-      .channel('signals-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'signals' }, () => {
-        fetchSignals();
-      })
-      .subscribe();
-
     return () => { 
       supabase.removeChannel(leadsChannel);
-      supabase.removeChannel(signalsChannel);
     };
   }, []);
 
@@ -64,7 +63,7 @@ function App() {
     setConnError(error);
     
     if (status === 'connected') {
-      await Promise.all([fetchLeads(), fetchSignals()]);
+      await fetchLeads();
     }
     setLoading(false);
   };
@@ -87,29 +86,6 @@ function App() {
     }
   };
 
-  const fetchSignals = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('signals')
-        .select('*')
-        .order('timestamp', { ascending: false });
-
-      if (error) {
-        console.error('Supabase fetch error (signals):', error);
-        setConnError(error.message);
-      } else if (data) {
-        setSignals(data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch signals:', err);
-    }
-  };
-
-  const syncSignals = () => {
-    setShowSyncModal(true);
-  };
-
-
   const filteredLeads = useMemo(() => {
     return leads.filter(l => 
       l.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -123,10 +99,10 @@ function App() {
       {/* Sidebar */}
       <aside className="w-72 border-r border-[var(--border-color)] bg-[var(--bg-surface)] backdrop-blur-3xl p-8 flex flex-col hidden lg:flex fixed h-full z-20">
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <Zap className="text-white w-6 h-6 fill-white" />
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <Globe className="text-white w-6 h-6" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">Command <span className="text-blue-600">Center</span></span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">JW <span className="text-blue-600">Command</span></span>
         </div>
 
         <nav className="space-y-2 flex-1">
@@ -138,41 +114,17 @@ function App() {
           />
           <NavItem 
             icon={<Users size={20} />} 
-            label="Leads" 
+            label="Revealed Leads" 
             active={activeTab === 'Leads'} 
             onClick={() => setActiveTab('Leads')}
           />
-          <NavItem 
-            icon={<Activity size={20} />} 
-            label="Live Activity" 
-            active={activeTab === 'Activity'} 
-            onClick={() => setActiveTab('Activity')}
-          />
-          <NavItem 
-            icon={<ShieldCheck size={20} />} 
-            label="Signals Feed" 
-            active={activeTab === 'Signals'} 
-            onClick={() => setActiveTab('Signals')}
-          />
-          <NavItem 
-            icon={<Users size={20} className="text-purple-600" />} 
-            label="Recruiters" 
-            active={activeTab === 'Recruiters'} 
-            onClick={() => setActiveTab('Recruiters')}
-          />
-          <NavItem 
-            icon={<Zap size={20} />} 
-            label="Workflows & Campaigns" 
-            active={activeTab === 'Workflows'} 
-            onClick={() => setActiveTab('Workflows')}
-          />
         </nav>
 
-        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
-          <div className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2">Live Status</div>
+        <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100 mt-auto">
+          <div className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2">RB2B Engine</div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span className="text-sm font-medium text-blue-900">System Active</span>
+            <span className="text-sm font-medium text-blue-900">Active</span>
           </div>
         </div>
       </aside>
@@ -181,11 +133,13 @@ function App() {
       <main className="flex-1 lg:ml-72 p-8 md:p-12">
         <header className="flex items-center justify-between mb-12">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Sales Command Center</h1>
-            <p className="text-slate-500 mt-1 font-medium">Monitoring jwaiconsulting.com in real-time.</p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-widest text-[#4A5568]">Signal Intelligence</span>
+            </div>
+            <p className="text-slate-500 mt-1 font-medium">Monitoring web traffic deanonymization.</p>
           </div>
           <div className="flex items-center gap-4">
-            {/* Connection Status Badge */}
             <div 
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider cursor-help transition-all ${
                 connStatus === 'connected' ? 'bg-green-50 text-green-600 border border-green-100' :
@@ -200,8 +154,7 @@ function App() {
                 connStatus === 'error' ? 'bg-red-500' :
                 'bg-slate-300'
               }`} />
-              {connStatus === 'connected' ? 'DB Online' : connStatus === 'error' ? 'DB Offline' : 'Syncing...'}
-              {connStatus === 'error' && <AlertTriangle size={10} className="ml-1" />}
+              {connStatus === 'connected' ? 'Supabase Connected' : connStatus === 'error' ? 'Supabase Offline' : 'Syncing...'}
             </div>
 
             <div className={`flex items-center bg-white border border-slate-200 rounded-2xl px-4 py-2 transition-all ${searchQuery ? 'ring-2 ring-blue-500/20 border-blue-500/50' : ''}`}>
@@ -214,14 +167,9 @@ function App() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 transition-colors shadow-sm relative group">
-              <Bell size={20} />
-              <div className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white group-hover:animate-ping" />
-            </button>
           </div>
         </header>
 
-        {/* Debug Panel */}
         {showDebug && (
           <div className="mb-8 p-6 bg-slate-900 rounded-3xl text-slate-300 font-mono text-xs relative overflow-hidden animate-slide-down">
             <div className="flex items-center justify-between mb-4">
@@ -246,12 +194,8 @@ function App() {
                 <span className={connStatus === 'connected' ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>{connStatus.toUpperCase()}</span>
               </p>
               <p className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-500">Leads in DB:</span> 
+                <span className="text-slate-500">Revealed Leads:</span> 
                 <span className="text-white font-bold">{leads.length} rows</span>
-              </p>
-              <p className="flex justify-between border-b border-slate-800 pb-2">
-                <span className="text-slate-500">Signals in DB:</span> 
-                <span className="text-white font-bold">{signals.length} rows</span>
               </p>
               
               {connError && (
@@ -262,31 +206,18 @@ function App() {
                   <p className="break-all opacity-80">{connError}</p>
                 </div>
               )}
-              
-              {!connError && connStatus === 'connected' && (
-                <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-2xl text-green-400 font-bold animate-pulse text-center uppercase tracking-widest text-[10px]">
-                  ✅ Pipeline connected to cdbvlnxirrfczxdccwbr.supabase.co
-                </div>
-              )}
             </div>
           </div>
         )}
 
         {activeTab === 'Overview' && (
           <div className="animate-fade-in">
-            {/* Debug - can be removed once verified */}
-            {signals.length > 0 && <div className="hidden">Loaded {signals.length} signals</div>}
-            
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <StatCard icon={<Users className="text-blue-600" />} label="Total Leads" value={leads.length.toString()} trend="+12% this week" />
-              <StatCard icon={<TrendingUp className="text-green-600" />} label="High Intent" value={leads.filter(l => l.intent_score > 50).length.toString()} trend="+5% since yesterday" />
-              <StatCard icon={<Users className="text-purple-600" />} label="Recruiters" value={signals.filter(s => s.type === 'recruiter_view').length.toString()} trend="Targeted views" />
-              <StatCard icon={<Globe className="text-sky-500" />} label="Active Now" value="3" trend="Live traffic" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-12">
+              <StatCard icon={<Users className="text-blue-600" />} label="Revealed Leads" value={leads.length.toString()} trend="Deanonymized via RB2B" />
+              <StatCard icon={<Globe className="text-emerald-600" />} label="Recent Sessions" value={leads.reduce((acc, curr) => acc + (curr.visit_count || 1), 0).toString()} trend="Total web traffic hits" />
             </div>
           
-            {/* Lead Feed */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold tracking-tight text-slate-900">Recently Revealed Visitors</h2>
@@ -294,25 +225,10 @@ function App() {
                     onClick={() => setActiveTab('Leads')}
                     className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1 group"
                   >
-                    View all <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    View all <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>
                 <LeadList leads={filteredLeads.slice(0, 5)} loading={loading} />
-              </section>
-
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Recent LinkedIn Signals</h2>
-                  <button 
-                    onClick={() => setActiveTab('Signals')}
-                    className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1 group"
-                  >
-                    View all <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-                <div className="max-h-[600px] overflow-y-auto pr-2">
-                   <SignalsFeed signals={signals.slice(0, 5)} />
-                </div>
               </section>
             </div>
           </div>
@@ -325,157 +241,12 @@ function App() {
                 <Users className="text-blue-600" />
                 Leads Database
               </h2>
-              <div className="text-sm font-medium text-slate-500">Showing {filteredLeads.length} total profiles</div>
+              <div className="text-sm font-medium text-slate-500">Showing {filteredLeads.length} profiles</div>
             </div>
             <LeadList leads={filteredLeads} loading={loading} />
           </div>
         )}
-
-        {activeTab === 'Activity' && (
-          <div className="glass-card p-12 text-center flex flex-col items-center animate-fade-in">
-            <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-6">
-              <Activity className="text-purple-600 w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Live Activity Stream</h2>
-            <p className="text-slate-500 max-w-sm mb-8">Real-time session analysis and page-level intent tracking will appear here.</p>
-            <div className="w-full max-w-2xl space-y-4 text-left">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="flex gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 opacity-50">
-                  <div className="w-2 h-10 bg-slate-200 rounded-full" />
-                  <div className="flex-1">
-                    <div className="h-4 bg-slate-200 rounded w-1/3 mb-2" />
-                    <div className="h-3 bg-slate-200 rounded w-2/3" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'Signals' && (
-          <div className="animate-fade-in">
-            <SignalsFeed signals={signals.filter(s => s.type !== 'recruiter_view')} onSync={syncSignals} />
-          </div>
-        )}
-
-        {activeTab === 'Recruiters' && (
-          <div className="animate-fade-in">
-            <SignalsFeed 
-              signals={signals.filter(s => s.type === 'recruiter_view')} 
-              onSync={syncSignals} 
-              title="Recruiter Intelligence"
-              subtitle="Specialized tracking for recruiter profile views and scans"
-            />
-          </div>
-        )}
-
-        {activeTab === 'Workflows' && (
-          <div className="animate-fade-in">
-             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-                <Zap className="text-blue-600" />
-                Automated Workflows & Enrichment
-              </h2>
-              <button className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-600/30">
-                + Create Workflow
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-6">
-              <WorkflowCard 
-                title="Distributed Connection Network" 
-                trigger="When [Campaign CSV] is uploaded"
-                actions={[
-                  "Distribute list into batches of 25",
-                  "Queue connection requests to active team extensions",
-                  "Track global acceptance rate"
-                ]}
-                active={true}
-              />
-            </div>
-          </div>
-        )}
       </main>
-      
-      {/* LinkedIn Sync Modal */}
-      {showSyncModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-slide-up border border-slate-100">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Zap className="text-blue-600 fill-blue-600" size={24} />
-                  Active LinkedIn Ingest
-                </h2>
-                <p className="text-slate-500 text-sm mt-1">Pull your profile views & post interactions instantly.</p>
-              </div>
-              <button 
-                onClick={() => setShowSyncModal(false)}
-                className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-slate-900"
-              >
-                <RefreshCw size={20} className="rotate-45" />
-              </button>
-            </div>
-            
-            <div className="p-8 space-y-6">
-              <div className="bg-blue-50 border border-blue-100 p-6 rounded-3xl">
-                <h4 className="text-blue-900 font-bold mb-2 flex items-center gap-2">
-                  <Info size={16} /> Step 1: Install Scraper Bookmarklet
-                </h4>
-                <p className="text-blue-700 text-sm leading-relaxed mb-4">
-                  Drag this button to your bookmarks bar, or copy the code below.
-                </p>
-                <div className="flex gap-4">
-                   <a 
-                    href={`javascript:(function(){const s=document.createElement('script');s.src='https://cdbvlnxirrfczxdccwbr.supabase.co/storage/v1/object/public/scripts/li-scraper.js?t='+Date.now();document.body.appendChild(s);})();`} 
-                    className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all flex items-center gap-2"
-                    onClick={(e) => e.preventDefault()}
-                  >
-                    Sync LinkedIn Data
-                  </a>
-                  <button 
-                    onClick={() => {
-                        navigator.clipboard.writeText(`javascript:(function(){const s=document.createElement('script');s.src='https://cdbvlnxirrfczxdccwbr.supabase.co/storage/v1/object/public/scripts/li-scraper.js?t='+Date.now();document.body.appendChild(s);})();`);
-                        alert("Copied to clipboard!");
-                    }}
-                    className="px-6 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-50 transition-all"
-                  >
-                    Copy Script Code
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-slate-900 font-bold flex items-center gap-2">
-                  <TrendingUp size={16} className="text-green-600" /> Step 2: Trigger the Pull
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all bg-slate-50/50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target 1</p>
-                    <p className="text-xs font-bold text-slate-700 mb-2">Profile Viewers</p>
-                    <p className="text-[11px] text-slate-500 mb-3">Open your LinkedIn "Who's viewed your profile" page then click the Bookmarklet.</p>
-                    <a href="https://www.linkedin.com/me/profile-views/" target="_blank" rel="noreferrer" className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-1">Open Page <ExternalLink size={10} /></a>
-                  </div>
-                   <div className="p-4 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all bg-slate-50/50">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target 2</p>
-                    <p className="text-xs font-bold text-slate-700 mb-2">Post Interactions</p>
-                    <p className="text-[11px] text-slate-500 mb-3">Open any LinkedIn post you wrote, click "reactions", then click the Bookmarklet.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end">
-              <button 
-                onClick={() => setShowSyncModal(false)}
-                className="px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl shadow-slate-900/20"
-              >
-                I've Synced the Data
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -539,7 +310,7 @@ const LeadRow = ({ lead }: { lead: Lead }) => (
           )}
         </div>
         <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-lg text-[#0a66c2]">
-          <Activity size={14} fill="currentColor" />
+          <Globe size={14} className="text-blue-500" />
         </div>
       </div>
 
@@ -554,9 +325,10 @@ const LeadRow = ({ lead }: { lead: Lead }) => (
           {lead.job_title} <span className="mx-2 text-slate-300">|</span> <span className="text-slate-900 font-bold">{lead.company_name}</span>
         </p>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <LeadBadge icon={<Globe size={12} />} label={lead.company_domain || lead.ip_address} />
-          <LeadBadge icon={<Activity size={12} />} label={`${lead.visit_count} sessions`} />
+          <LeadBadge icon={<Activity size={12} />} label={`${lead.visit_count || 1} sessions`} />
+          <LeadBadge icon={<ExternalLink size={12} />} label={lead.last_page_viewed?.split('jwaiconsulting.com').pop() || 'Unknown page'} />
         </div>
       </div>
     </div>
@@ -568,7 +340,7 @@ const LeadRow = ({ lead }: { lead: Lead }) => (
           <div key={i} className={`flex-1 rounded-sm transition-all duration-1000 ${i === 3 ? 'bg-blue-600' : 'bg-blue-200'}`} style={{ height: `${h}%` }} />
         ))}
       </div>
-      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Intent Score: {lead.intent_score}%</div>
+      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Intent Score: {lead.intent_score || 0}%</div>
     </div>
 
     {/* Actions */}
@@ -585,9 +357,6 @@ const LeadRow = ({ lead }: { lead: Lead }) => (
       ) : (
         <button className="flex-1 md:flex-none px-6 py-3 bg-slate-100 text-slate-400 text-xs font-bold rounded-2xl cursor-not-allowed">Profile Pending</button>
       )}
-      <button className="p-3 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 transition-colors shadow-sm">
-        <ChevronRight size={18} />
-      </button>
     </div>
   </div>
 )
@@ -599,60 +368,8 @@ const LeadBadge = ({ icon, label }: { icon: React.ReactNode, label: string }) =>
   </div>
 )
 
-const WorkflowCard = ({ title, trigger, actions, active }: { title: string, trigger: string, actions: string[], active: boolean }) => (
-  <div className="glass-card p-8 flex flex-col md:flex-row gap-8 glass-card-hover group">
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider ${active ? 'bg-green-50 text-green-600 border-green-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
-                {active ? 'Active' : 'Paused'}
-            </span>
-        </div>
-        <p className="text-sm font-medium text-blue-600 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-center gap-2 mb-4">
-            <Zap size={14} /> {trigger}
-        </p>
-        
-        <div className="space-y-3 relative pl-6">
-            <div className="absolute left-[11px] top-4 bottom-4 w-0.5 bg-slate-200 rounded-full" />
-            {actions.map((action, i) => (
-                <div key={i} className="flex items-center gap-4 text-sm font-medium text-slate-600 relative">
-                    <div className="w-6 h-6 rounded-full bg-white border-2 border-blue-500 text-blue-600 flex items-center justify-center text-[10px] font-bold absolute -left-6 z-10 shadow-sm">{i + 1}</div>
-                    <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex-1">{action}</div>
-                </div>
-            ))}
-        </div>
-      </div>
-      <div className="flex flex-col justify-center items-end border-l border-slate-100 pl-8">
-          <div className="text-3xl font-bold tracking-tight text-slate-900 mb-1">
-              {active ? '2,492' : '0'}
-          </div>
-          <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Executions</div>
-      </div>
-  </div>
-)
-
 const Loader2 = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M12 2v4" />
-    <path d="m16.2 7.8 2.9-2.9" />
-    <path d="M18 12h4" />
-    <path d="m16.2 16.2 2.9 2.9" />
-    <path d="M12 18v4" />
-    <path d="m4.9 19.1 2.9-2.9" />
-    <path d="M2 12h4" />
-    <path d="m4.9 4.9 2.9 2.9" />
-  </svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 2v4" /><path d="m16.2 7.8 2.9-2.9" /><path d="M18 12h4" /><path d="m16.2 16.2 2.9 2.9" /><path d="M12 18v4" /><path d="m4.9 19.1 2.9-2.9" /><path d="M2 12h4" /><path d="m4.9 4.9 2.9 2.9" /></svg>
 )
 
 export default App

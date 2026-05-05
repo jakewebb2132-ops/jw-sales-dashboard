@@ -1,0 +1,9 @@
+[agent]
+name = "sales-commander"
+model = "anthropic:claude-sonnet-4-6"
+
+[sandbox]
+provider = "langsmith"
+template = "deepagents-deploy"
+image = "node:20"
+scope = "assistant"

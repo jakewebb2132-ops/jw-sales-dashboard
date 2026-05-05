@@ -1,0 +1,25 @@
+
+## 🗓 Review: 2026-04-10 (G-Drive Strategy Ingestion)
+
+### 💡 Strategic Learnings
+- **Prompt Contracts (The Failure Clause)**: Every complex task must start by defining **Failure Conditions**. This creates a "safety floor" for automated work.
+- **Agent Chatrooms**: For high-ambiguity decisions, spawn a multi-agent debate (Architect vs. Critic) to filter out hallucinations.
+- **Rule Appending**: Prefer appending new learned rules rather than rewriting core instructions. This preserves the evolutionary context of the agent.
+- **Manager-Worker Orchestration**: Distinguish between the "Planning Manager" (High-level reasoning) and "Execution Workers" (Tool usage).
+
+### ✅ Tactical Implementation
+- Added Prompt Contract mandates to `CLAUDE.md`.
+- Integrated Failure Condition protocols into `AGENTS.md`.
+
+## 🗓 Review: 2026-04-12 (Home Base Branding & Job Applications)
+
+### 💡 Strategic Learnings
+- **Repo Ambiguity**: `dashboard.jwaiconsulting.com` points to the `jw-sales-command` repo, not `jw-ai-consulting`. Always check `.vercel/project.json` for domain mapping.
+- **Mirroring State**: Strategic OS files (like `applied-jobs.json`) must be synced to multiple dashboard endpoints via `run.sh` to prevent data silos.
+- **Visual Proofing**: Use seed data in production to immediately verify new feed logic and provide a premium "out-of-the-box" experience.
+
+### ✅ Tactical Implementation
+- Rebranded both repos to **"Home Base"**.
+- Standardized the Job Applications tab with live stats and colored status badges.
+- Implemented `vercel --prod --force` deployment protocol to bypass stale caches.
+- Fixed TS build errors caused by unused imports in monolithic App files.

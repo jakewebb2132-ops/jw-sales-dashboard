@@ -22,8 +22,28 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Generate Report
+      # Step 1: Pull latest signals from Supabase into local memory
+      - name: Sync Memory Local (Skill)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node daily_summary.js
+        run: node workspace/skills/memory-sync/run.js
+
+      # Step 2: Resolve all Anonymous Visitor signals — cache-first, live agent fallback
+      - name: Identity Resolution (Skill)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node workspace/skills/identity-resolution/run.js
+
+      # Step 3: Generate daily signal intelligence report
+      - name: Generate Report (Skill)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node workspace/skills/signal-reporting/run.js
+
+      # Step 4: Distill repo + signals into NotebookLM knowledge artifact
+      - name: Distill Context for NotebookLM (Skill)
+        run: node workspace/skills/context-distiller/run.js

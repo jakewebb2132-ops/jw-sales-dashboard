@@ -1,0 +1,22 @@
+# Memory Palace for JW Sales Command
+
+# Repository-specific context for the AI Agent.
+# This ensures that future sessions understand the "Rooms" and logic applied to this repo.
+
+rooms:
+- name: intelligence
+  description: Code related to signal ingestion, LinkedIn scraping, and dashboard rendering.
+- name: security
+  description: Security posture and protocols. Managed via wiki/security/.
+- name: strategy
+  description: Core GTM and AI strategy logic. Managed via wiki/strategy/.
+- name: general
+  description: General configuration and miscellaneous files.
+
+protocols:
+- name: plan-execute-verify
+  description: Never perform one-off work.Recurring tasks must become SKILLS in workspace/skills/.
+- name: security-first
+  description: Never expose credentials. Follow protocols in wiki/security/security-posture.md.
+- name: strategy-alignment
+  description: Ensure all tactical work aligns with the GTM thesis in wiki/strategy/ai-gtm/.

@@ -1,0 +1,58 @@
+{
+  "notebooks": {
+    "sales-command-center---context": {
+      "id": "sales-command-center---context",
+      "url": "https://notebooklm.google.com/notebook/7d31ddd6-015a-4d4b-9d19-55b1483e5249",
+      "name": "Sales Command Center - Context",
+      "description": "Core instructions, GTM strategy, and operational skills for the Sales Command agent.",
+      "topics": [
+        "sales",
+        "gtm",
+        "ai-agent",
+        "strategy"
+      ],
+      "content_types": [],
+      "use_cases": [],
+      "tags": [],
+      "created_at": "2026-04-10T10:21:05.462815",
+      "updated_at": "2026-04-10T10:21:05.462823",
+      "use_count": 0,
+      "last_used": null
+    },
+    "ai-dna-stripper": {
+      "id": "ai-dna-stripper",
+      "url": "https://notebooklm.google.com/notebook/8174c1ad-3232-4d84-9548-2fffefedfcd5",
+      "name": "AI DNA stripper",
+      "description": "AI DNA stripping and analysis logic",
+      "topics": [
+        "ai-analysis"
+      ],
+      "content_types": [],
+      "use_cases": [],
+      "tags": [],
+      "created_at": "2026-04-10T10:21:05.542006",
+      "updated_at": "2026-04-10T10:21:05.542015",
+      "use_count": 0,
+      "last_used": null
+    },
+    "linkedin-post-rules": {
+      "id": "linkedin-post-rules",
+      "url": "https://notebooklm.google.com/notebook/af97c5a9-d806-4cc1-8679-8a2b617442eb",
+      "name": "LinkedIn Post Rules",
+      "description": "Rules and guidelines for LinkedIn content creation",
+      "topics": [
+        "linkedin",
+        "content"
+      ],
+      "content_types": [],
+      "use_cases": [],
+      "tags": [],
+      "created_at": "2026-04-10T10:21:05.629493",
+      "updated_at": "2026-04-10T10:21:05.629504",
+      "use_count": 0,
+      "last_used": null
+    }
+  },
+  "active_notebook_id": "sales-command-center---context",
+  "updated_at": "2026-04-10T10:21:05.629507"
+}

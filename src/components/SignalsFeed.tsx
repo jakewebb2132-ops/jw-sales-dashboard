@@ -1,5 +1,5 @@
 import { type Signal } from './Simulator'
-import { Zap, Clock, ExternalLink, MessageSquare, Eye, ThumbsUp, Search } from 'lucide-react'
+import { Zap, Clock, ExternalLink, MessageSquare, Eye, ThumbsUp, Search, User, ShieldAlert } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 interface SignalsFeedProps {
@@ -48,11 +48,19 @@ export const SignalsFeed = ({ signals, onSync, title, subtitle }: SignalsFeedPro
           <div key={signal.id} className="glass-card p-5 group hover:border-blue-200 transition-all cursor-pointer">
             <div className="flex gap-6">
               <div className="relative">
-                <img 
-                  src={signal.person_image || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png'} 
-                  alt={signal.person_name} 
-                  className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white/50 group-hover:ring-blue-100 transition-all bg-slate-100"
-                />
+                {(signal.person_name === 'Anonymous Visitor' || 
+                  (signal.person_name && /^\d+ (work|found|are)/i.test(signal.person_name)) ||
+                  (signal.person_image && (signal.person_image.includes('ghost_person') || signal.person_image.includes('AAYQBAT')))) ? (
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center ring-2 ring-white/50 group-hover:ring-blue-100 transition-all">
+                    <User className="text-slate-300 w-6 h-6" />
+                  </div>
+                ) : (
+                  <img 
+                    src={signal.person_image || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png'} 
+                    alt={signal.person_name} 
+                    className="w-14 h-14 rounded-2xl object-cover ring-2 ring-white/50 group-hover:ring-blue-100 transition-all bg-slate-100"
+                  />
+                )}
                 <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-lg flex items-center justify-center border-2 border-white shadow-sm ${
                   signal.type === 'profile_view' ? 'bg-blue-600 text-white' : 
                   signal.type === 'recruiter_view' ? 'bg-purple-600 text-white' :
@@ -71,15 +79,25 @@ export const SignalsFeed = ({ signals, onSync, title, subtitle }: SignalsFeedPro
                 <div className="flex items-start justify-between mb-1">
                   <div>
                     <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-2 text-sm uppercase tracking-tight">
-                      {signal.person_name || 'Inbound Prospect'}
-                      {signal.linkedin_url && (
+                      { (signal.person_name && (signal.person_name.toUpperCase() === 'ANONYMOUS VISITOR' || /^\d+ (work|found|are)/i.test(signal.person_name))) ? 'Identity Masked' : (signal.person_name || 'Inbound Prospect')}
+                      { (signal.person_name && (signal.person_name.toUpperCase() === 'ANONYMOUS VISITOR' || /^\d+ (work|found|are)/i.test(signal.person_name))) && (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-md flex items-center gap-1 normal-case font-bold">
+                          <ShieldAlert size={10} />
+                          Private Mode
+                        </span>
+                      )}
+                      {signal.linkedin_url && signal.person_name !== 'Anonymous Visitor' && (
                         <a href={signal.linkedin_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <ExternalLink size={14} className="text-slate-400 hover:text-blue-600" />
                         </a>
                       )}
                     </h4>
                     <p className="text-slate-500 text-[11px] font-medium leading-tight">
-                      {signal.person_title || 'Professional'} {signal.person_company ? `at ${signal.person_company}` : ''}
+                      {signal.person_name === 'Anonymous Visitor' 
+                        ? (signal.interaction_text && signal.interaction_text.includes('at') 
+                            ? `Resolving Lead ${signal.interaction_text.split('at')[1]}` 
+                            : 'Analyzing Firmographic Data...')
+                        : `${signal.person_title || 'Professional'} ${signal.person_company ? `at ${signal.person_company}` : ''}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
@@ -103,12 +121,21 @@ export const SignalsFeed = ({ signals, onSync, title, subtitle }: SignalsFeedPro
 
 
                 <div className="mt-4 flex gap-4">
-                  <button className="text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider transition-colors">
-                    Send Personalized Invite
-                  </button>
-                  <button className="text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wider transition-colors">
-                    View LinkedIn Profile
-                  </button>
+                  {(signal.person_name && (signal.person_name.toUpperCase() === 'ANONYMOUS VISITOR' || /^\d+ (work|found|are)/i.test(signal.person_name))) ? (
+                    <button className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 uppercase tracking-wider transition-colors flex items-center gap-2">
+                       <Search size={12} />
+                       De-anonymize with AI
+                    </button>
+                  ) : (
+                    <>
+                      <button className="text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider transition-colors">
+                        Send Personalized Invite
+                      </button>
+                      <button className="text-[11px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wider transition-colors">
+                        View LinkedIn Profile
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

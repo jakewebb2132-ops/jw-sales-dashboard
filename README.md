@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# ⚡️ Sales Command Center
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An open-source, model-agnostic agent harness for high-intensity LinkedIn signal intelligence and AI-first GTM operations.
 
-Currently, two official plugins are available:
+## 🚀 Deep Agents Deploy
+This project is configured as a **Deep Agent**, an open alternative to Claude Managed Agents. It uses the `deepagents` harness to own its memory and orchestration logic.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Core Components
+- **`deepagents.toml`**: Agent configuration (Identity & Sandbox).
+- **`AGENTS.md`**: Core memory and instruction set (The "AI-Pilled" GTM Thesis).
+- **`skills/`**: Encapsulated agent skills for Identity Resolution and Signal Reporting.
+- **`mcp.json`**: Model Context Protocol configuration for tool access.
 
-## React Compiler
+## 🧠 AI-First GTM Thesis
+The Sales Command Center follows the "AI-Pilled" playbook:
+1. **Pillar 1: WebSearch Enrichment**: Resolve anonymous signals into high-intent profiles.
+2. **Pillar 2: Signal Intelligence**: Real-time monitoring of interaction intent.
+3. **Pillar 3: Data Flywheel**: Continuous enrichment of the Supabase memory palace.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠 Tech Stack
+- **Frontend**: React 19, Vite 8, TailwindCSS 4, Framer Motion.
+- **Backend**: Supabase (PostgreSQL + Realtime).
+- **Agent Harness**: [Deep Agents](https://deepagents.com) (TypeScript).
+- **Deployment**: LangSmith Deployment.
 
-## Expanding the ESLint configuration
+## 🔄 Development Workflow
+Follow the **Plan-Execute-Verify** protocol:
+- **Think**: Outline strategic alignment.
+- **Plan**: Codify logic into `skills/`.
+- **Execute**: Use `deepagents deploy` to push updates.
+- **Verify**: Monitor signal quality on the dashboard.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+Built for the open world. Own your memory. No vendor lock-in.
