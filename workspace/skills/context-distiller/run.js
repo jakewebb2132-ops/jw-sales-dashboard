@@ -13,42 +13,66 @@ async function distillContext() {
     fs.mkdirSync(knowledgeDir);
   }
 
-  let distillation = `# Project Context Snapshot: Sales Command Center\n`;
-  distillation += `Generated: ${new Date().toISOString()}\n\n`;
+  let distillation = `# Project Context Snapshot: Sales Command Center
+`;
+  distillation += `Generated: ${new Date().toISOString()}
+
+`;
 
   // 1. Core Objectives
   if (fs.existsSync(path.join(root, 'AGENTS.md'))) {
     const agentsMd = fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8');
-    distillation += `## 🎯 Core Objectives\n\n${agentsMd}\n\n`;
+    distillation += `## 🎯 Core Objectives
+
+${agentsMd}
+
+`;
   }
 
   // 2. Strategic Wiki
-  distillation += `## 🧠 Strategic Wiki (Local Intelligence)\n\n`;
+  distillation += `## 🧠 Strategic Wiki (Local Intelligence)
+
+`;
   const wikiPath = path.join(root, 'wiki');
   if (fs.existsSync(wikiPath)) {
     const wikiFiles = walkDir(wikiPath);
     wikiFiles.forEach(file => {
       const content = fs.readFileSync(file, 'utf8');
-      distillation += `### File: ${path.relative(root, file)}\n\n${content}\n\n`;
+      distillation += `### File: ${path.relative(root, file)}
+
+${content}
+
+`;
     });
   }
 
   // 3. Operational Skills
-  distillation += `## 🛠 Operational Skills (Code Capabilities)\n\n`;
+  distillation += `## 🛠 Operational Skills (Code Capabilities)
+
+`;
   const skillsPath = path.join(root, 'workspace', 'skills');
   if (fs.existsSync(skillsPath)) {
     const skillFiles = walkDir(skillsPath, 'SKILL.md');
     skillFiles.forEach(file => {
       const content = fs.readFileSync(file, 'utf8');
       const skillName = path.dirname(path.relative(skillsPath, file));
-      distillation += `### Skill: ${skillName}\n\n${content}\n\n`;
+      distillation += `### Skill: ${skillName}
+
+${content}
+
+`;
     });
   }
 
   // 4. Repository Structure
-  distillation += `## 📂 Repository Registry\n\n\`\`\`\n`;
+  distillation += `## 📂 Repository Registry
+
+\`\`\`
+`;
   distillation += getRepoMap(root);
-  distillation += `\n\`\`\`\n`;
+  distillation += `
+\`\`\`
+`;
 
   const outputPath = path.join(knowledgeDir, 'context_distillation.md');
   fs.writeFileSync(outputPath, distillation);
@@ -70,8 +94,9 @@ function walkDir(dir, filter = '.md') {
   const list = fs.readdirSync(dir);
   list.forEach(file => {
     file = path.join(dir, file);
-    const stat = fs.statSync(file);
-    if (stat && stat.isDirectory()) {
+    const stat = fs.lstatSync(file);
+    if (stat.isSymbolicLink()) return;
+    if (stat.isDirectory()) {
       results = results.concat(walkDir(file, filter));
     } else {
       if (file.endsWith(filter)) results.push(file);
@@ -87,8 +112,10 @@ function getRepoMap(dir, depth = 0) {
   list.forEach(file => {
     if (file.startsWith('.') && file !== '.agents') return;
     if (file === 'node_modules') return;
-    const stat = fs.statSync(path.join(dir, file));
-    map += '  '.repeat(depth) + `- ${file}${stat.isDirectory() ? '/' : ''}\n`;
+    const stat = fs.lstatSync(path.join(dir, file));
+    if (stat.isSymbolicLink()) return;
+    map += '  '.repeat(depth) + `- ${file}${stat.isDirectory() ? '/' : ''}
+`;
     if (stat.isDirectory()) {
       map += getRepoMap(path.join(dir, file), depth + 1);
     }
