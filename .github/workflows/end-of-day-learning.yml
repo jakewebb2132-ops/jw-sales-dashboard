@@ -34,8 +34,3 @@ jobs:
           git add wiki/ knowledge/ LEARNINGS.md memory/
           git commit -m "🤖 End-of-Day Learning Cycle: Updating Knowledge Registry [skip ci]" || echo "No changes to commit"
           git push
-
-      - name: Notify Slack
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: node workspace/skills/slack-notify/run.js "End-of-Day Learning Cycle complete. Knowledge registry updated and synced to GitHub."
