@@ -1,5 +1,5 @@
 # Project Context Snapshot: Sales Command Center
-Generated: 2026-04-10T15:11:12.971Z
+Generated: 2026-05-23T14:49:26.681Z
 
 ## 🎯 Core Objectives
 
@@ -17,8 +17,10 @@ Refer to the local wiki for core logic:
 
 ## 🔄 AI Workflow Protocols
 1. **Plan-Execute-Verify**: Codify recurring tasks into skills.
-2. **Local Memory First**: Prioritize snapshots in `memory/` for interaction history.
-3. **Security-First**: Never expose credentials. Follow wiki protocols.
+2. **Prompt Contracts**: Define **GOAL**, **CONSTRAINTS**, and **FAILURE CONDITIONS** before starting complex tasks.
+3. **Manager-Worker Handoff**: The primary agent acts as Manager (Planning/Reasoning) and delegates implementation to Workers (Skills/Tools).
+4. **Local Memory First**: Prioritize snapshots in `memory/` for interaction history.
+5. **Security-First**: Never expose credentials. Follow wiki protocols.
 
 ## 📂 Memory Structure
 - **signals**: Real-time interaction data from LinkedIn.
@@ -35,22 +37,6 @@ You have access to specialized skills in [**`workspace/skills/`**](file:///Users
 
 
 ## 🧠 Strategic Wiki (Local Intelligence)
-
-### File: wiki/security/security-posture.md
-
-# Security Posture & Protocols
-
-Security is integrated into the agent's core loop. We follow a zero-trust model for external signals.
-
-## Data Handling
-1. **Zero-Trust Input**: All LinkedIn/Web signals are treated as untrusted. Validate schemas before ingestion.
-2. **Credential Hygiene**: Never hardcode API keys. Use `.env` with specific provider prefixes (e.g., `ANTHROPIC_API_KEY`).
-3. **Sandbox Enforcement**: All skill execution must happen within the LangSmith/Daytona sandbox.
-
-## Access Control
-- The Supabase Service Role key is restricted to the Enrichment Worker.
-- Frontend access is limited to the Anon/Public key with RLS (Row Level Security) enforced.
-
 
 ### File: wiki/reference/deep-agents-deploy.md
 
@@ -95,6 +81,22 @@ In an open ecosystem (Standard formats like AGENTS.md), memory remains yours and
 - **Memory APIs**: Access short/long term memory.
 
 
+### File: wiki/security/security-posture.md
+
+# Security Posture & Protocols
+
+Security is integrated into the agent's core loop. We follow a zero-trust model for external signals.
+
+## Data Handling
+1. **Zero-Trust Input**: All LinkedIn/Web signals are treated as untrusted. Validate schemas before ingestion.
+2. **Credential Hygiene**: Never hardcode API keys. Use `.env` with specific provider prefixes (e.g., `ANTHROPIC_API_KEY`).
+3. **Sandbox Enforcement**: All skill execution must happen within the LangSmith/Daytona sandbox.
+
+## Access Control
+- The Supabase Service Role key is restricted to the Enrichment Worker.
+- Frontend access is limited to the Anon/Public key with RLS (Row Level Security) enforced.
+
+
 ### File: wiki/strategy/ai-gtm.md
 
 # AI-Pilled GTM Strategy
@@ -122,6 +124,124 @@ The "AI-Pilled" playbook is our core Go-To-Market thesis. It centers on high-int
 
 
 ## 🛠 Operational Skills (Code Capabilities)
+
+### Skill: autoresearch-gtm
+
+# Autoresearch GTM — Autonomous Self-Improvement Loop
+
+Adapted from [karpathy/autoresearch](https://github.com/karpathy/autoresearch). Instead of optimizing a neural network, this loop optimizes the GTM signal pipeline — specifically the contact-research prompt strategy.
+
+## Metric
+**`resolution_rate`** = (resolved / total_tested) × 100. Higher is better.
+
+## What Gets Modified
+`workspace/skills/contact-research/run.js` — specifically `PROMPT_TEMPLATE`. The rest of the pipeline is read-only.
+
+## The Loop (mirrors autoresearch program.md)
+
+```
+LOOP FOREVER:
+1. Fetch a fixed batch of unresolved signals (Pending Enrichment) from Supabase
+2. Run contact-research on the batch with the current prompt → measure baseline resolution_rate
+3. Use Claude to propose a PROMPT_TEMPLATE improvement
+4. Apply the change to contact-research/run.js
+5. git commit
+6. Re-run contact-research on the same batch → measure new resolution_rate
+7. Log to results.tsv
+8. If resolution_rate improved → keep commit (advance)
+9. If equal or worse → git reset --hard HEAD~1 (revert)
+10. Repeat
+```
+
+## Usage
+
+```bash
+# Run from project root
+node workspace/skills/autoresearch-gtm/run.js
+
+# Run with a custom batch size (default: 10)
+node workspace/skills/autoresearch-gtm/run.js --batch 20
+
+# Run N experiments then stop (default: loop forever)
+node workspace/skills/autoresearch-gtm/run.js --max-experiments 5
+```
+
+## Results Log (results.tsv)
+Tab-separated, untracked by git:
+```
+commit  resolution_rate  status  description
+```
+
+## Required ENV
+- `SUPABASE_URL` / `VITE_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` / `VITE_SUPABASE_ANON_KEY`
+- Claude CLI (`claude`) must be on PATH (uses Pro plan)
+
+
+### Skill: contact-research
+
+# Contact Research Skill
+
+Live AI-powered identity resolution for unknown organizations. Uses Claude with web search to find the highest-value decision-maker at any org — the person most likely to be the LinkedIn signal source.
+
+## Pillar Alignment
+- **Pillar 1** (Identity Resolution): Resolves anonymous org signals to a named person.
+- **Pillar 3** (Data Flywheel): Discovered contacts are written back to Supabase, enriching the memory registry permanently.
+
+## Usage
+
+### Standalone (CLI)
+```bash
+node workspace/skills/contact-research/run.js "Southridge School"
+node workspace/skills/contact-research/run.js "Maildoso" "viewed LinkedIn profile"
+```
+
+### As a Module (imported by other skills)
+```js
+import { researchContact } from './workspace/skills/contact-research/run.js';
+
+const contact = await researchContact('Southridge School');
+// Returns: { person_name, person_title, person_company, linkedin_url, confidence, source }
+// Returns: null if no confident match found
+```
+
+## Output Schema
+| Field | Description |
+|---|---|
+| `person_name` | Full name of resolved contact |
+| `person_title` | Job title |
+| `person_company` | Organization name (normalized) |
+| `linkedin_url` | LinkedIn profile URL |
+| `confidence` | `high` / `medium` / `low` |
+| `source` | Search query used to find the contact |
+
+## Target Persona Logic
+Claude is instructed to prioritize decision-makers in this order:
+1. CMO / VP Marketing / Head of Communications
+2. CTO / VP Engineering / Head of Data & AI
+3. CEO / Executive Director (for smaller orgs)
+
+## Required ENV
+- `ANTHROPIC_API_KEY` — Claude API key with web search access
+
+
+### Skill: context-distiller
+
+# Context Distiller Skill
+
+This skill compiles the repository state, strategic wiki, and operational scripts into a compressed "Knowledge Artifact" optimized for NotebookLM.
+
+## 📋 Usage
+Run this skill to generate a `context_distillation.md` file. 
+- **Goal**: Offload token usage by providing a high-density summary for RAG (Retrieval Augmented Generation) tools like NotebookLM.
+- **Output**: `knowledge/context_distillation.md`
+
+## 🛠 Action
+Run `node run.js` to execute the distillation.
+
+## 🧠 Context
+This skill reads the entire `workspace/skills/` and `wiki/` directories to synthesize the current project "Learnable Surface". It captures the "how" and "why" behind the code, not just the "what".
+
 
 ### Skill: identity-resolution
 
@@ -160,90 +280,329 @@ Run `node run.js` to execute the sync.
 This skill ensures that the agent's memory registry is accessible locally for analysis, training, or offline workflows without constant API overhead.
 
 
-### Skill: context-distiller
+### Skill: notebooklm
 
-# Context Distiller Skill
+---
+name: notebooklm
+description: Use this skill to query your Google NotebookLM notebooks directly from Claude Code for source-grounded, citation-backed answers from Gemini. Browser automation, library management, persistent auth. Drastically reduced hallucinations through document-only responses.
+---
 
-This skill compiles the repository state, strategic wiki, and operational scripts into a compressed "Knowledge Artifact" optimized for NotebookLM.
+# NotebookLM Research Assistant Skill
+
+Interact with Google NotebookLM to query documentation with Gemini's source-grounded answers. Each question opens a fresh browser session, retrieves the answer exclusively from your uploaded documents, and closes.
+
+## When to Use This Skill
+
+Trigger when user:
+- Mentions NotebookLM explicitly
+- Shares NotebookLM URL (`https://notebooklm.google.com/notebook/...`)
+- Asks to query their notebooks/documentation
+- Wants to add documentation to NotebookLM library
+- Uses phrases like "ask my NotebookLM", "check my docs", "query my notebook"
+
+## ⚠️ CRITICAL: Add Command - Smart Discovery
+
+When user wants to add a notebook without providing details:
+
+**SMART ADD (Recommended)**: Query the notebook first to discover its content:
+```bash
+# Step 1: Query the notebook about its content
+python scripts/run.py ask_question.py --question "What is the content of this notebook? What topics are covered? Provide a complete overview briefly and concisely" --notebook-url "[URL]"
+
+# Step 2: Use the discovered information to add it
+python scripts/run.py notebook_manager.py add --url "[URL]" --name "[Based on content]" --description "[Based on content]" --topics "[Based on content]"
+```
+
+**MANUAL ADD**: If user provides all details:
+- `--url` - The NotebookLM URL
+- `--name` - A descriptive name
+- `--description` - What the notebook contains (REQUIRED!)
+- `--topics` - Comma-separated topics (REQUIRED!)
+
+NEVER guess or use generic descriptions! If details missing, use Smart Add to discover them.
+
+## Critical: Always Use run.py Wrapper
+
+**NEVER call scripts directly. ALWAYS use `python scripts/run.py [script]`:**
+
+```bash
+# ✅ CORRECT - Always use run.py:
+python scripts/run.py auth_manager.py status
+python scripts/run.py notebook_manager.py list
+python scripts/run.py ask_question.py --question "..."
+
+# ❌ WRONG - Never call directly:
+python scripts/auth_manager.py status  # Fails without venv!
+```
+
+The `run.py` wrapper automatically:
+1. Creates `.venv` if needed
+2. Installs all dependencies
+3. Activates environment
+4. Executes script properly
+
+## Core Workflow
+
+### Step 1: Check Authentication Status
+```bash
+python scripts/run.py auth_manager.py status
+```
+
+If not authenticated, proceed to setup.
+
+### Step 2: Authenticate (One-Time Setup)
+```bash
+# Browser MUST be visible for manual Google login
+python scripts/run.py auth_manager.py setup
+```
+
+**Important:**
+- Browser is VISIBLE for authentication
+- Browser window opens automatically
+- User must manually log in to Google
+- Tell user: "A browser window will open for Google login"
+
+### Step 3: Manage Notebook Library
+
+```bash
+# List all notebooks
+python scripts/run.py notebook_manager.py list
+
+# BEFORE ADDING: Ask user for metadata if unknown!
+# "What does this notebook contain?"
+# "What topics should I tag it with?"
+
+# Add notebook to library (ALL parameters are REQUIRED!)
+python scripts/run.py notebook_manager.py add \
+  --url "https://notebooklm.google.com/notebook/..." \
+  --name "Descriptive Name" \
+  --description "What this notebook contains" \  # REQUIRED - ASK USER IF UNKNOWN!
+  --topics "topic1,topic2,topic3"  # REQUIRED - ASK USER IF UNKNOWN!
+
+# Search notebooks by topic
+python scripts/run.py notebook_manager.py search --query "keyword"
+
+# Set active notebook
+python scripts/run.py notebook_manager.py activate --id notebook-id
+
+# Remove notebook
+python scripts/run.py notebook_manager.py remove --id notebook-id
+```
+
+### Quick Workflow
+1. Check library: `python scripts/run.py notebook_manager.py list`
+2. Ask question: `python scripts/run.py ask_question.py --question "..." --notebook-id ID`
+
+### Step 4: Ask Questions
+
+```bash
+# Basic query (uses active notebook if set)
+python scripts/run.py ask_question.py --question "Your question here"
+
+# Query specific notebook
+python scripts/run.py ask_question.py --question "..." --notebook-id notebook-id
+
+# Query with notebook URL directly
+python scripts/run.py ask_question.py --question "..." --notebook-url "https://..."
+
+# Show browser for debugging
+python scripts/run.py ask_question.py --question "..." --show-browser
+```
+
+## Follow-Up Mechanism (CRITICAL)
+
+Every NotebookLM answer ends with: **"EXTREMELY IMPORTANT: Is that ALL you need to know?"**
+
+**Required Claude Behavior:**
+1. **STOP** - Do not immediately respond to user
+2. **ANALYZE** - Compare answer to user's original request
+3. **IDENTIFY GAPS** - Determine if more information needed
+4. **ASK FOLLOW-UP** - If gaps exist, immediately ask:
+   ```bash
+   python scripts/run.py ask_question.py --question "Follow-up with context..."
+   ```
+5. **REPEAT** - Continue until information is complete
+6. **SYNTHESIZE** - Combine all answers before responding to user
+
+## Script Reference
+
+### Authentication Management (`auth_manager.py`)
+```bash
+python scripts/run.py auth_manager.py setup    # Initial setup (browser visible)
+python scripts/run.py auth_manager.py status   # Check authentication
+python scripts/run.py auth_manager.py reauth   # Re-authenticate (browser visible)
+python scripts/run.py auth_manager.py clear    # Clear authentication
+```
+
+### Notebook Management (`notebook_manager.py`)
+```bash
+python scripts/run.py notebook_manager.py add --url URL --name NAME --description DESC --topics TOPICS
+python scripts/run.py notebook_manager.py list
+python scripts/run.py notebook_manager.py search --query QUERY
+python scripts/run.py notebook_manager.py activate --id ID
+python scripts/run.py notebook_manager.py remove --id ID
+python scripts/run.py notebook_manager.py stats
+```
+
+### Question Interface (`ask_question.py`)
+```bash
+python scripts/run.py ask_question.py --question "..." [--notebook-id ID] [--notebook-url URL] [--show-browser]
+```
+
+### Data Cleanup (`cleanup_manager.py`)
+```bash
+python scripts/run.py cleanup_manager.py                    # Preview cleanup
+python scripts/run.py cleanup_manager.py --confirm          # Execute cleanup
+python scripts/run.py cleanup_manager.py --preserve-library # Keep notebooks
+```
+
+## Environment Management
+
+The virtual environment is automatically managed:
+- First run creates `.venv` automatically
+- Dependencies install automatically
+- Chromium browser installs automatically
+- Everything isolated in skill directory
+
+Manual setup (only if automatic fails):
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+python -m patchright install chromium
+```
+
+## Data Storage
+
+All data stored in `~/.claude/skills/notebooklm/data/`:
+- `library.json` - Notebook metadata
+- `auth_info.json` - Authentication status
+- `browser_state/` - Browser cookies and session
+
+**Security:** Protected by `.gitignore`, never commit to git.
+
+## Configuration
+
+Optional `.env` file in skill directory:
+```env
+HEADLESS=false           # Browser visibility
+SHOW_BROWSER=false       # Default browser display
+STEALTH_ENABLED=true     # Human-like behavior
+TYPING_WPM_MIN=160       # Typing speed
+TYPING_WPM_MAX=240
+DEFAULT_NOTEBOOK_ID=     # Default notebook
+```
+
+## Decision Flow
+
+```
+User mentions NotebookLM
+    ↓
+Check auth → python scripts/run.py auth_manager.py status
+    ↓
+If not authenticated → python scripts/run.py auth_manager.py setup
+    ↓
+Check/Add notebook → python scripts/run.py notebook_manager.py list/add (with --description)
+    ↓
+Activate notebook → python scripts/run.py notebook_manager.py activate --id ID
+    ↓
+Ask question → python scripts/run.py ask_question.py --question "..."
+    ↓
+See "Is that ALL you need?" → Ask follow-ups until complete
+    ↓
+Synthesize and respond to user
+```
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| ModuleNotFoundError | Use `run.py` wrapper |
+| Authentication fails | Browser must be visible for setup! --show-browser |
+| Rate limit (50/day) | Wait or switch Google account |
+| Browser crashes | `python scripts/run.py cleanup_manager.py --preserve-library` |
+| Notebook not found | Check with `notebook_manager.py list` |
+
+## Best Practices
+
+1. **Always use run.py** - Handles environment automatically
+2. **Check auth first** - Before any operations
+3. **Follow-up questions** - Don't stop at first answer
+4. **Browser visible for auth** - Required for manual login
+5. **Include context** - Each question is independent
+6. **Synthesize answers** - Combine multiple responses
+
+## Limitations
+
+- No session persistence (each question = new browser)
+- Rate limits on free Google accounts (50 queries/day)
+- Manual upload required (user must add docs to NotebookLM)
+- Browser overhead (few seconds per question)
+
+## Resources (Skill Structure)
+
+**Important directories and files:**
+
+- `scripts/` - All automation scripts (ask_question.py, notebook_manager.py, etc.)
+- `data/` - Local storage for authentication and notebook library
+- `references/` - Extended documentation:
+  - `api_reference.md` - Detailed API documentation for all scripts
+  - `troubleshooting.md` - Common issues and solutions
+  - `usage_patterns.md` - Best practices and workflow examples
+- `.venv/` - Isolated Python environment (auto-created on first run)
+- `.gitignore` - Protects sensitive data from being committed
+
+
+### Skill: session-review
+
+# Session Review & Self-Learning Skill
+
+This skill analyzes all changes made to the repository over the last 24 hours, distills them into strategic learnings, and updates the Karpathy Ledger (`LEARNINGS.md`) and Memory Palace.
 
 ## 📋 Usage
-Run this skill to generate a `context_distillation.md` file. 
-- **Goal**: Offload token usage by providing a high-density summary for RAG (Retrieval Augmented Generation) tools like NotebookLM.
-- **Output**: `knowledge/context_distillation.md`
+Run this skill at the end of every day (11:59 PM CST) to ensure the "Local Memory" is updated with the day's successes and failures.
 
 ## 🛠 Action
-Run `node run.js` to execute the distillation.
+Run `node run.js` to execute the review.
 
 ## 🧠 Context
-This skill reads the entire `workspace/skills/` and `wiki/` directories to synthesize the current project "Learnable Surface". It captures the "how" and "why" behind the code, not just the "what".
+This skill uses `git log` and `git diff` to identify tactical shifts and updates the `wiki/` if new strategic heuristics have been discovered.
 
 
-### Skill: supabase-postgres-best-practices
+### Skill: signal-reporting
 
----
-name: supabase-postgres-best-practices
-description: Postgres performance optimization and best practices from Supabase. Use this skill when writing, reviewing, or optimizing Postgres queries, schema designs, or database configurations.
-license: MIT
-metadata:
-  author: supabase
-  version: "1.1.1"
-  organization: Supabase
-  date: January 2026
-  abstract: Comprehensive Postgres performance optimization guide for developers using Supabase and Postgres. Contains performance rules across 8 categories, prioritized by impact from critical (query performance, connection management) to incremental (advanced features). Each rule includes detailed explanations, incorrect vs. correct SQL examples, query plan analysis, and specific performance metrics to guide automated optimization and code generation.
----
+# Signal Reporting Skill
 
-# Supabase Postgres Best Practices
+This skill allows the agent to generate a summary of LinkedIn intent signals from the past 24 hours.
 
-Comprehensive performance optimization guide for Postgres, maintained by Supabase. Contains rules across 8 categories, prioritized by impact to guide automated query optimization and schema design.
+## 📋 Usage
+Run this skill to get a breakdown of:
+- High-intent leads (Names, Titles, Companies)
+- Signals needing enrichment
+- Trends in interaction data
 
-## When to Apply
+## 🛠 Action
+Run `node run.js` to execute the reporting logic.
 
-Reference these guidelines when:
-- Writing SQL queries or designing schemas
-- Implementing indexes or query optimization
-- Reviewing database performance issues
-- Configuring connection pooling or scaling
-- Optimizing for Postgres-specific features
-- Working with Row-Level Security (RLS)
+## 🧠 Context
+This skill queries the Supabase `signals` table. It filters for recent timestamps and categorizes leads based on `person_name` status.
 
-## Rule Categories by Priority
 
-| Priority | Category | Impact | Prefix |
-|----------|----------|--------|--------|
-| 1 | Query Performance | CRITICAL | `query-` |
-| 2 | Connection Management | CRITICAL | `conn-` |
-| 3 | Security & RLS | CRITICAL | `security-` |
-| 4 | Schema Design | HIGH | `schema-` |
-| 5 | Concurrency & Locking | MEDIUM-HIGH | `lock-` |
-| 6 | Data Access Patterns | MEDIUM | `data-` |
-| 7 | Monitoring & Diagnostics | LOW-MEDIUM | `monitor-` |
-| 8 | Advanced Features | LOW | `advanced-` |
+### Skill: slack-notify
 
-## How to Use
+# Slack Notification Skill
 
-Read individual rule files for detailed explanations and SQL examples:
+This skill allows the agent to send automated status updates, daily digests, and accomplishment logs to a Slack channel.
 
-```
-references/query-missing-indexes.md
-references/query-partial-indexes.md
-references/_sections.md
-```
+## 📋 Usage
+Run this skill to notify the team (or yourself) of completed tasks.
+- **Environment Variable Required**: `SLACK_WEBHOOK_URL`
 
-Each rule file contains:
-- Brief explanation of why it matters
-- Incorrect SQL example with explanation
-- Correct SQL example with explanation
-- Optional EXPLAIN output or metrics
-- Additional context and references
-- Supabase-specific notes (when applicable)
+## 🛠 Action
+Run `node run.js --message "Your message here"` to send a notification.
 
-## References
-
-- https://www.postgresql.org/docs/current/
-- https://supabase.com/docs
-- https://wiki.postgresql.org/wiki/Performance_Optimization
-- https://supabase.com/docs/guides/database/overview
-- https://supabase.com/docs/guides/auth/row-level-security
+## 🧠 Context
+This skill is integrated into the nightly `end-of-day-learning` workflow to provide a "pulse" of the agent's autonomous progress and self-learning.
 
 
 ### Skill: supabase
@@ -354,97 +713,160 @@ Do NOT use `apply_migration` to change a local database schema — it writes a m
   **MUST read when** the user reports that this skill gave incorrect guidance or is missing information.
 
 
-### Skill: signal-reporting
+### Skill: supabase-postgres-best-practices
 
-# Signal Reporting Skill
+---
+name: supabase-postgres-best-practices
+description: Postgres performance optimization and best practices from Supabase. Use this skill when writing, reviewing, or optimizing Postgres queries, schema designs, or database configurations.
+license: MIT
+metadata:
+  author: supabase
+  version: "1.1.1"
+  organization: Supabase
+  date: January 2026
+  abstract: Comprehensive Postgres performance optimization guide for developers using Supabase and Postgres. Contains performance rules across 8 categories, prioritized by impact from critical (query performance, connection management) to incremental (advanced features). Each rule includes detailed explanations, incorrect vs. correct SQL examples, query plan analysis, and specific performance metrics to guide automated optimization and code generation.
+---
 
-This skill allows the agent to generate a summary of LinkedIn intent signals from the past 24 hours.
+# Supabase Postgres Best Practices
 
-## 📋 Usage
-Run this skill to get a breakdown of:
-- High-intent leads (Names, Titles, Companies)
-- Signals needing enrichment
-- Trends in interaction data
+Comprehensive performance optimization guide for Postgres, maintained by Supabase. Contains rules across 8 categories, prioritized by impact to guide automated query optimization and schema design.
 
-## 🛠 Action
-Run `node run.js` to execute the reporting logic.
+## When to Apply
 
-## 🧠 Context
-This skill queries the Supabase `signals` table. It filters for recent timestamps and categorizes leads based on `person_name` status.
+Reference these guidelines when:
+- Writing SQL queries or designing schemas
+- Implementing indexes or query optimization
+- Reviewing database performance issues
+- Configuring connection pooling or scaling
+- Optimizing for Postgres-specific features
+- Working with Row-Level Security (RLS)
+
+## Rule Categories by Priority
+
+| Priority | Category | Impact | Prefix |
+|----------|----------|--------|--------|
+| 1 | Query Performance | CRITICAL | `query-` |
+| 2 | Connection Management | CRITICAL | `conn-` |
+| 3 | Security & RLS | CRITICAL | `security-` |
+| 4 | Schema Design | HIGH | `schema-` |
+| 5 | Concurrency & Locking | MEDIUM-HIGH | `lock-` |
+| 6 | Data Access Patterns | MEDIUM | `data-` |
+| 7 | Monitoring & Diagnostics | LOW-MEDIUM | `monitor-` |
+| 8 | Advanced Features | LOW | `advanced-` |
+
+## How to Use
+
+Read individual rule files for detailed explanations and SQL examples:
+
+```
+references/query-missing-indexes.md
+references/query-partial-indexes.md
+references/_sections.md
+```
+
+Each rule file contains:
+- Brief explanation of why it matters
+- Incorrect SQL example with explanation
+- Correct SQL example with explanation
+- Optional EXPLAIN output or metrics
+- Additional context and references
+- Supabase-specific notes (when applicable)
+
+## References
+
+- https://www.postgresql.org/docs/current/
+- https://supabase.com/docs
+- https://wiki.postgresql.org/wiki/Performance_Optimization
+- https://supabase.com/docs/guides/database/overview
+- https://supabase.com/docs/guides/auth/row-level-security
 
 
 ## 📂 Repository Registry
 
 ```
-- skills-lock.json
-- tsconfig.node.json
-- index.html
-- tsconfig.app.json
-- dist/
-  - index.html
-  - assets/
-    - index-Dg-tKgy7.css
-    - index-B2u0Jmle.js
-  - icons.svg
-  - favicon.svg
+- .agents/
+  - skills/
+    - supabase/
+    - supabase-postgres-best-practices/
+- AGENTS.md
+- CLAUDE.md
+- LEARNINGS.md
+- README.md
+- agent_loop_logs.txt
 - chrome-extension/
   - background.js
   - bridge.js
-  - manifest.json
   - content.js
-- workspace/
-  - skills/
-    - identity-resolution/
-    - memory-sync/
-    - context-distiller/
-    - supabase-postgres-best-practices/
-    - supabase/
-    - signal-reporting/
-- .agents/
-  - skills/
-    - supabase-postgres-best-practices/
-    - supabase/
-- wiki/
-  - security/
-    - security-posture.md
-  - reference/
-    - deep-agents-deploy.md
-    - mcp-example.json
-    - deepagents-example.toml
-  - strategy/
-    - ai-gtm.md
+  - manifest.json
+- eslint.config.js
 - exclusion-index.json
-- supabase/
-  - functions/
-    - resolve-identity/
-- README.md
+- index.html
+- inspect_signals.js
+- knowledge/
+  - autoresearch-distillation.md
+  - context_distillation.md
+  - context_distillation.txt
+- memory/
+  - telegram_inbox.json
 - mempalace.yaml
-- public/
-  - icons.svg
-  - favicon.svg
 - package-lock.json
 - package.json
-- knowledge/
-- tsconfig.json
-- eslint.config.js
-- AGENTS.md
-- vite.config.ts
-- CLAUDE.md
-- inspect_signals.js
+- public/
+  - data/
+    - applied-jobs.json
+  - favicon.svg
+  - icons.svg
+- skills-lock.json
 - src/
-  - App.tsx
-  - main.tsx
   - App.css
-  - index.css
+  - App.tsx
+  - assets/
+    - hero.png
+    - react.svg
+    - vite.svg
   - components/
     - MeshCanvas.tsx
     - SignalsFeed.tsx
     - Simulator.tsx
+  - index.css
   - lib/
     - supabase.ts
-  - assets/
-    - hero.png
-    - vite.svg
-    - react.svg
+  - main.tsx
+- supabase/
+  - functions/
+    - resolve-identity/
+  - migrations/
+    - 20260420_funding_prospects.sql
+- telegram_errors.txt
+- telegram_logs.txt
+- telegram_offset.txt
+- tsconfig.app.json
+- tsconfig.json
+- tsconfig.node.json
+- vite.config.ts
+- wiki/
+  - reference/
+    - deep-agents-deploy.md
+    - deepagents-example.toml
+    - mcp-example.json
+  - security/
+    - security-posture.md
+  - strategy/
+    - ai-gtm.md
+- workspace/
+  - skills/
+    - autoresearch-gtm/
+    - contact-research/
+    - context-distiller/
+    - identity-resolution/
+    - memory-sync/
+    - notebooklm/
+    - session-review/
+    - signal-reporting/
+    - slack-notify/
+    - supabase/
+    - supabase-postgres-best-practices/
+    - telegram-listener/
+    - telegram-notify/
 
 ```
